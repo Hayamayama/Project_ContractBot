@@ -1,0 +1,14 @@
+streamlit
+streamlit-option-menu
+python-dotenv
+langchain
+langchain-openai
+pinecone-client
+langchain-pinecone
+langchain-community
+lxml
+python-docx
+unstructured[docx,pdf]
+faiss-cpu
+tiktoken
+pandas
