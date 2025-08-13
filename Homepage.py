@@ -41,17 +41,17 @@ st.markdown(
 
 with st.sidebar:
     st.image("logo.png", width=100) 
-   # --- 👇 更新後的小遊戲區塊 (更換為貪食蛇) ---
-    st.markdown("---")
-    st.subheader("🎮 小遊戲時間")
+   # # --- 👇 更新後的小遊戲區塊 (更換為貪食蛇) ---
+   #  st.markdown("---")
+   #  st.subheader("🎮 小遊戲時間")
 
-    # 嵌入 Internet Archive 的經典俄羅斯方塊
-    game_url = "https://archive.org/embed/msdos_Tetris_Classic_1992"
-    st.components.v1.iframe(game_url, height=500, scrolling=False)
+   #  # 嵌入 Internet Archive 的經典俄羅斯方塊
+   #  game_url = "https://archive.org/embed/msdos_Tetris_Classic_1992"
+   #  st.components.v1.iframe(game_url, height=500, scrolling=False)
 
-    st.caption("遊戲來源：Internet Archive")
-    # --- 遊戲區塊結束 ---
-    # --- 遊戲區塊結束 ---
+   #  st.caption("遊戲來源：Internet Archive")
+   #  # --- 遊戲區塊結束 ---
+   
     
 
 # --- 2. 環境變數與核心設定 ---
