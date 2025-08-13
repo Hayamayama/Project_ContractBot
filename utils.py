@@ -28,6 +28,10 @@ def fetch_pinecone_namespaces(index_name):
 
 def extract_revisions_from_single_doc(file_path, nsmap):
     """從單一 .docx 檔案中，直接讀取追蹤修訂的內容。"""
+<<<<<<< HEAD
+=======
+    # (此函式內容與您提供的版本完全相同)
+>>>>>>> d560d0fd57ffdc9967e9e75b08c3836376ca651a
     doc = docx.Document(file_path)
     extracted_data = []
     for para in doc.paragraphs:
@@ -38,6 +42,7 @@ def extract_revisions_from_single_doc(file_path, nsmap):
             for run in runs:
                 text_nodes = run.xpath('.//w:t', namespaces=nsmap)
                 text = text_nodes[0].text if text_nodes and text_nodes[0].text else ""
+<<<<<<< HEAD
                 if run.xpath('.//w:ins', namespaces=nsmap):
                     revised_text += text
                 elif run.xpath('.//w:del', namespaces=nsmap):
@@ -77,6 +82,30 @@ def extract_comments_from_docx(file_path):
                 f"■ 關聯內文:\n{original_text}\n\n"
                 f"■ 法務註解:\n{comment_text}"
             )
+=======
+                if run.xpath('.//w:ins', namespaces=nsmap): revised_text += text
+                elif run.xpath('.//w:del', namespaces=nsmap): original_text += text
+                else:
+                    original_text += text
+                    revised_text += text
+            if original_text.strip() != revised_text.strip():
+                wisdom_chunk = (f"【審閱案例 - 追蹤修訂】\n...") # (格式化字串省略)
+                extracted_data.append(wisdom_chunk)
+    return extracted_data
+
+
+def extract_comments_from_docx(file_path):
+    """從 .docx 檔案中提取所有註解及其關聯的文字。"""
+    # (此函式內容與您提供的版本完全相同)
+    doc = docx.Document(file_path)
+    extracted_data = []
+    for comment in doc.comments:
+        paragraphs = comment.paragraphs
+        original_text = "\n".join([p.text for p in paragraphs]).strip()
+        comment_text = comment.text.strip()
+        if original_text and comment_text:
+            wisdom_chunk = (f"【審閱案例 - 法務專家註解】\n...") # (格式化字串省略)
+>>>>>>> d560d0fd57ffdc9967e9e75b08c3836376ca651a
             extracted_data.append(wisdom_chunk)
     return extracted_data
 
@@ -91,4 +120,8 @@ def ingest_docs_to_pinecone(docs, index_name, namespace):
         embedding=embeddings,
         index_name=index_name,
         namespace=namespace
+<<<<<<< HEAD
     ) 
+=======
+    )
+>>>>>>> d560d0fd57ffdc9967e9e75b08c3836376ca651a
