@@ -48,7 +48,7 @@ def extract_revisions_from_single_doc(file_path, nsmap):
             
             if original_text.strip() and revised_text.strip() and original_text.strip() != revised_text.strip():
                 # ★★★【修正後】★★★
-                # 將提取到的原始文字和修訂後文字，透過 f-string 組合起來
+                # 將提取到的原始文字和修訂後文字，透過 f-string 組合
                 wisdom_chunk = (
                     f"【審閱案例 - 追蹤修訂】\n"
                     f"■ 原始條文:\n{original_text.strip()}\n\n"
@@ -57,7 +57,7 @@ def extract_revisions_from_single_doc(file_path, nsmap):
                 extracted_data.append(wisdom_chunk)
     return extracted_data
 
-
+ 
 def extract_comments_from_docx(file_path):
     """從 .docx 檔案中提取所有註解及其關聯的文字。"""
     doc = docx.Document(file_path)
