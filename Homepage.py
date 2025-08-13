@@ -41,15 +41,16 @@ st.markdown(
 
 with st.sidebar:
     st.image("logo.png", width=100) 
-   # --- 👇 更新後的小遊戲區塊 ---
+   # --- 👇 更新後的小遊戲區塊 (更換為貪食蛇) ---
     st.markdown("---") # 畫一條分隔線
     st.subheader("🎮 小遊戲時間") # 加上標題
 
-    # 使用 iframe 嵌入網頁遊戲 (更新為 2048)
-    game_url = "https://play2048.co/"
-    st.components.v1.iframe(game_url, height=500, scrolling=False)
+    # 使用 iframe 嵌入 Google 貪食蛇遊戲
+    # 這個網址確定可以被嵌入，不會有 Content Security Policy 的問題
+    game_url = "https://www.google.com/fbx?fbx=snake_arcade"
+    st.components.v1.iframe(game_url, height=550, scrolling=False)
 
-    st.caption("遊戲來源：play2048.co")
+    st.caption("遊戲來源：Google")
     # --- 遊戲區塊結束 ---
     
 
