@@ -41,15 +41,20 @@ st.markdown(
 
 with st.sidebar:
     st.image("logo.png", width=100) 
-    # --- 👇 新增的遊戲區塊 ---
+    # --- 👇 新增的遊戲區塊 (按鈕觸發) ---
     st.markdown("---") # 畫一條分隔線
     st.subheader("🎮 小遊戲時間") # 加上標題
 
-    # 使用 iframe 嵌入網頁遊戲
-    game_url = "https://www.agame.com/game/subway-surfers-clone"
-    st.components.v1.iframe(game_url, height=450)
+    # 建立一個按鈕，點擊後會切換遊戲的顯示狀態
+    if st.button("顯示 / 隱藏遊戲", use_container_width=True):
+        # 切換 (toggle) show_game 的布林值 (True -> False, False -> True)
+        st.session_state.show_game = not st.session_state.show_game
 
-    st.caption("遊戲來源：Agame.com")
+    # 根據 session_state 的狀態來決定是否顯示遊戲
+    if st.session_state.get("show_game", False):
+        game_url = "https://www.y8.com/games/bus_and_subway_runner_3d"
+        st.components.v1.iframe(game_url, height=450, scrolling=True)
+        st.caption("遊戲來源：Y8.com")
     # --- 遊戲區塊結束 ---
     
 
