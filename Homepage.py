@@ -41,15 +41,15 @@ st.markdown(
 
 with st.sidebar:
     st.image("logo.png", width=100) 
-   # --- 👇 新增的遊戲區塊 (已更新網址) ---
+   # --- 👇 更新後的小遊戲區塊 ---
     st.markdown("---") # 畫一條分隔線
     st.subheader("🎮 小遊戲時間") # 加上標題
 
-    # 使用 iframe 嵌入網頁遊戲 (這裏是新的網址)
-    game_url = "https://www.y8.com/games/bus_and_subway_runner_3d"
-    st.components.v1.iframe(game_url, height=450, scrolling=True)
+    # 使用 iframe 嵌入網頁遊戲 (更新為 2048)
+    game_url = "https://play2048.co/"
+    st.components.v1.iframe(game_url, height=500, scrolling=False)
 
-    st.caption("遊戲來源：Y8.com")
+    st.caption("遊戲來源：play2048.co")
     # --- 遊戲區塊結束 ---
     
 
