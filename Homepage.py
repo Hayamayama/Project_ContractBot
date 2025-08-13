@@ -42,7 +42,7 @@ st.markdown(
 with st.sidebar:
     st.image("logo.png", width=100) 
    # --- 👇 更新後的小遊戲區塊 (更換為貪食蛇) ---
-   st.markdown("---")
+    st.markdown("---")
     st.subheader("🎮 小遊戲時間")
 
     # 嵌入 Internet Archive 的經典俄羅斯方塊
