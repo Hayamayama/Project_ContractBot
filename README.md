@@ -165,3 +165,11 @@ streamlit run Home.py
 * 在主畫面的**步驟三**，上傳一份您想要審查的「待審文件」。
 
 * 點擊 **"🚀 開始自動比對與分析"** 按鈕，等待系統產出分析報告。
+<<<<<<< HEAD
+=======
+
+
+## Streamlit Community Cloud 網址
+
+### https://project-contractbot.streamlit.app
+>>>>>>> origin/main

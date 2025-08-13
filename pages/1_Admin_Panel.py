@@ -12,7 +12,11 @@ from utils import (
 )
 
 st.set_page_config(page_title="管理後台", page_icon="⚙️")
+<<<<<<< HEAD
 st.title("知識庫管理後台 Knowledge Base Admin Dashboard")
+=======
+st.title("⚙️ 知識庫管理後台")
+>>>>>>> origin/main
 st.markdown("在這裡，您可以上傳新的知識、管理 GCO 經驗或進行系統維護。")
 
 INDEX_NAME = "contract-assistant"

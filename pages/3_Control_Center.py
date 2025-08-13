@@ -143,8 +143,13 @@ st.title("控制中心 Control Center")
 pins = sum(1 for it in st.session_state.search_history if it.get("pinned"))
 
 top = option_menu(
+<<<<<<< HEAD
     None, ["Settings", "Search"],
     icons=["gear-fill", "search"],
+=======
+    None, ["Settings", "Search", "New"],
+    icons=["gear-fill", "search", "rocket-takeoff"],
+>>>>>>> origin/main
     menu_icon="cast", default_index=1, orientation="horizontal",
 )
 
@@ -204,6 +209,71 @@ if top == "Search":
                            all_df.to_csv(index=False).encode("utf-8"),
                            file_name="search_history.csv", mime="text/csv")
 
+<<<<<<< HEAD
+=======
+# ----- New (FULL RESTORED CONTENT) -----
+if top == "New":
+    st.subheader("可自訂的審查項目 Customizable Review Parameters")
+    CORE_REVIEW_POINTS = [
+        "合約的保密期限 &nbsp;(Confidentiality Period)",
+        "機密資訊的定義範圍 &nbsp;(Definition of Confidential Information)",
+        "允許揭露機密資訊的例外情況 &nbsp;(Permitted Disclosures)",
+        "合約的準據法與管轄法院 &nbsp;(Governing Law and Jurisdiction)",
+        "資訊返還或銷毀的義務 &nbsp;(Return or Destruction of Information)",
+        "針對違約行為的補救措施或賠償條款 &nbsp;(Remedies for Breach)",
+        "智慧財產權的歸屬 &nbsp;(Intellectual Property Rights)",
+        "違約通知與改善期限 &nbsp;(Notice of Breach and Cure Period)"
+    ]
+    for point in CORE_REVIEW_POINTS:
+        st.toggle(point.split(" (")[0], value=True, key=point)
+    st.text_area("新增審查項目（每行一個)：", key="core_points_text", height=100)
+    st.markdown("---")
+
+    st.header("步驟一：管理參考文件 Manage Reference Documents")
+    new_ref_file = st.file_uploader("選擇 PDF 作為新的比對基準", type="pdf", key="ref_uploader")
+    if st.button("處理並儲存至知識庫"):
+        if new_ref_file: process_and_ingest_reference_file(new_ref_file)
+        else: st.warning("請先選擇一個參考文件。")
+    st.divider()
+
+    st.header("步驟二：選擇比對基準 Select Comparison Criteria")
+    selected = st.selectbox(
+        "請從已有的知識庫中選擇一份參考文件：",
+        options=st.session_state.processed_namespaces,
+        index=(st.session_state.processed_namespaces.index(st.session_state.selected_namespace)
+               if st.session_state.selected_namespace in st.session_state.processed_namespaces else None),
+        placeholder="請選擇..."
+    )
+    if selected is not None:
+        st.session_state.selected_namespace = selected
+    if st.button("手動同步知識庫列表"):
+        st.session_state.processed_namespaces = fetch_pinecone_namespaces(INDEX_NAME)
+        st.rerun()
+    st.divider()
+
+    st.header("步驟三：上傳待審文件並執行分析 Document Upload & Analysis")
+    selected_namespace = st.session_state.selected_namespace
+    if not selected_namespace:
+        st.info("請在上方步驟二選擇一份參考文件作為比對基準。")
+    else:
+        st.success(f"當前比對基準為： **{selected_namespace}**")
+
+    target_file = st.file_uploader("上傳您要審查的合約文件 (PDF)", type="pdf", key="target_uploader_main")
+    if st.button("🚀 開始自動比對與分析", type="primary", use_container_width=True, disabled=(not target_file)):
+        with st.spinner("正在準備比對環境..."):
+            embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
+            template_retriever = PineconeVectorStore(
+                index_name=INDEX_NAME, embedding=embeddings, namespace=selected_namespace
+            ).as_retriever(search_kwargs={'k': 2})
+            uploaded_retriever = load_and_process_pdf_for_faiss(target_file)
+        temp = st.session_state.get('temperature', 0.7)
+        max_tok = st.session_state.get('max_tokens', 256)
+        st.session_state.comparison_results = run_comparison(
+            template_retriever, uploaded_retriever, CORE_REVIEW_POINTS, temp, max_tok
+        )
+        st.rerun()
+
+>>>>>>> origin/main
 # ----- Results -----
 if st.session_state.get("comparison_results"):
     st.subheader("📜 合約比對分析報告")

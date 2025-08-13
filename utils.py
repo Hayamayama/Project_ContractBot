@@ -28,7 +28,14 @@ def fetch_pinecone_namespaces(index_name):
 
 def extract_revisions_from_single_doc(file_path, nsmap):
     """從單一 .docx 檔案中，直接讀取追蹤修訂的內容。"""
+<<<<<<< HEAD
     # (此函式內容與您提供的版本完全相同)
+=======
+<<<<<<< HEAD
+=======
+    # (此函式內容與您提供的版本完全相同)
+>>>>>>> d560d0fd57ffdc9967e9e75b08c3836376ca651a
+>>>>>>> origin/main
     doc = docx.Document(file_path)
     extracted_data = []
     for para in doc.paragraphs:
@@ -39,6 +46,50 @@ def extract_revisions_from_single_doc(file_path, nsmap):
             for run in runs:
                 text_nodes = run.xpath('.//w:t', namespaces=nsmap)
                 text = text_nodes[0].text if text_nodes and text_nodes[0].text else ""
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+                if run.xpath('.//w:ins', namespaces=nsmap):
+                    revised_text += text
+                elif run.xpath('.//w:del', namespaces=nsmap):
+                    original_text += text
+                else:
+                    original_text += text
+                    revised_text += text
+            
+            if original_text.strip() and revised_text.strip() and original_text.strip() != revised_text.strip():
+                # ★★★【修正後】★★★
+                # 將提取到的原始文字和修訂後文字，透過 f-string 組合
+                wisdom_chunk = (
+                    f"【審閱案例 - 追蹤修訂】\n"
+                    f"■ 原始條文:\n{original_text.strip()}\n\n"
+                    f"■ 修訂後條文:\n{revised_text.strip()}"
+                )
+                extracted_data.append(wisdom_chunk)
+    return extracted_data
+
+ 
+def extract_comments_from_docx(file_path):
+    """從 .docx 檔案中提取所有註解及其關聯的文字。"""
+    doc = docx.Document(file_path)
+    extracted_data = []
+    for comment in doc.comments:
+        # comment.paragraphs 是註解本身的文字內容
+        comment_text = "\n".join([p.text for p in comment.paragraphs]).strip()
+        
+        # comment.scope 是該註解所關聯到的文件內文
+        original_text = comment.scope.text.strip()
+
+        if original_text and comment_text:
+            # ★★★【修正後】★★★
+            # 將提取到的內文和註解文字，透過 f-string 組合起來
+            wisdom_chunk = (
+                f"【審閱案例 - 法務專家註解】\n"
+                f"■ 關聯內文:\n{original_text}\n\n"
+                f"■ 法務註解:\n{comment_text}"
+            )
+=======
+>>>>>>> origin/main
                 if run.xpath('.//w:ins', namespaces=nsmap): revised_text += text
                 elif run.xpath('.//w:del', namespaces=nsmap): original_text += text
                 else:
@@ -61,6 +112,10 @@ def extract_comments_from_docx(file_path):
         comment_text = comment.text.strip()
         if original_text and comment_text:
             wisdom_chunk = (f"【審閱案例 - 法務專家註解】\n...") # (格式化字串省略)
+<<<<<<< HEAD
+=======
+>>>>>>> d560d0fd57ffdc9967e9e75b08c3836376ca651a
+>>>>>>> origin/main
             extracted_data.append(wisdom_chunk)
     return extracted_data
 
@@ -75,4 +130,12 @@ def ingest_docs_to_pinecone(docs, index_name, namespace):
         embedding=embeddings,
         index_name=index_name,
         namespace=namespace
+<<<<<<< HEAD
     )
+=======
+<<<<<<< HEAD
+    ) 
+=======
+    )
+>>>>>>> d560d0fd57ffdc9967e9e75b08c3836376ca651a
+>>>>>>> origin/main
