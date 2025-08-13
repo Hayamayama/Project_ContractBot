@@ -1,0 +1,28 @@
+# Python virtual environment
+venv/
+.venv/
+
+# Environment variables file
+.env
+
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# IDE/Editor specific settings
+.vscode/
+.idea/
+
+# Operating System specific files
+.DS_Store
+Thumbs.db
+
+# Past files
+Past files/CB_Mainapp2.2.py
+Past files/Home.py
+Past files/Home_v2.py
+
+#Jerry files
+__pycache__/utils.cpython-313.pyc

@@ -1,0 +1,43 @@
+###
+source venv/bin/activate
+###
+
+###
+cd /Users/kris/Documents/VSC/ContractBot/contractbot
+###
+
+###
+cd /Users/kris/Documents/VSC/ContractBot/contractbot/ContractBot_Project 
+^整合後的streamlit介面
+###
+
+
+git push 步驟
+1. Add new repository
+2. Create .gitignore
+3. Initialize
+    a.  cd /Users/kris/Documents/VSC/ContractBot/contractbot/ContractBot_Project
+    b.  git init
+    c.  git add .
+    d.  git commit -m "Initial commit: Add ContractBot project files"
+4. Push
+    git remote add origin https://github.com/Hayamayama/Project_ContractBot.git
+    git branch -M main
+    git push -u origin main
+[如果不行push main]，就用git rm --cached .env
+
+＃＃＃未來更新：
+git add .
+git commit -m "更新了什麼"
+git push
+
+###
+git ls-files 可以用這條來查git的快取
+rm -rf .git 刪除git cache
+git init 
+###
+
+git status           查詢哪些檔案被修改
+git add README.md    把一個檔案加入暫存區
+git commit -m "..."  提交變更
+git push             推送變更
