@@ -23,36 +23,30 @@ from streamlit_option_menu import option_menu
 # --- 1. 頁面設定 ---
 st.set_page_config(page_title="AI 合約動態比對工具", layout="wide")
 
-# 安永Logo
+# --- 固定 Logo 於左上角 ---
+with st.sidebar:
+    st.image("logo.png", width=100)
+
 st.markdown(
     """
     <style>
-    [data-testid="stSidebar"] img {
-        display: block;
-        margin-left: auto;
-        margin-right: auto;
-        padding-top: 10px;
-        padding-bottom: 10px;
+    /* 將 Logo 固定在左上角 */
+    [data-testid="stSidebar"] > div:first-child {
+        position: fixed;
+        top: 2rem;
+        left: 2rem;
+        width: 100px;
+        z-index: 999999;
+    }
+    /* 將導覽列下推，避免被 Logo 覆蓋 */
+    [data-testid="stSidebarNav"] {
+        margin-top: 140px;
     }
     </style>
     """,
-    unsafe_allow_html=True
+    unsafe_allow_html=True,
 )
 
-with st.sidebar:
-    st.image("logo.png", width=100) 
-   # # --- 👇 更新後的小遊戲區塊 (更換為貪食蛇) ---
-   #  st.markdown("---")
-   #  st.subheader("🎮 小遊戲時間")
-
-   #  # 嵌入 Internet Archive 的經典俄羅斯方塊
-   #  game_url = "https://archive.org/embed/msdos_Tetris_Classic_1992"
-   #  st.components.v1.iframe(game_url, height=500, scrolling=False)
-
-   #  st.caption("遊戲來源：Internet Archive")
-   #  # --- 遊戲區塊結束 ---
-   
-    
 
 # --- 2. 環境變數與核心設定 ---
 load_dotenv()
@@ -230,11 +224,11 @@ def draw_main_app():
 
     def _df(items):
         return pd.DataFrame([{
-            "id": it["id"], 
-            "query": it["query"], 
-            "timestamp": it["timestamp"], 
+            "id": it["id"],
+            "query": it["query"],
+            "timestamp": it["timestamp"],
             "tags": ", ".join(it.get("tags", [])),
-            "pinned": it.get("pinned", False), 
+            "pinned": it.get("pinned", False),
             "top_title": (it["results"][0]["title"] if it.get("results") else ""),
             "top_path": (it["results"][0]["path"] if it.get("results") else ""),
         } for it in items])
@@ -246,9 +240,9 @@ def draw_main_app():
         st.markdown("### 如何運作 / How it works")
         st.markdown(
             """
-            1. **建立基準**：上傳「參考合約」，系統會作為永久比對基準保存。  
-            2. **上傳草稿**：再上傳「待審文件」，執行**段落級動態差異**與**條款語義對齊**。  
-            3. **智慧分析**：在功能頁輸入查詢（例：`責任上限`、`解約條款`），取得**差異重點**與**修訂建議**。  
+            1. **建立基準**：上傳「參考合約」，系統會作為永久比對基準保存。
+            2. **上傳草稿**：再上傳「待審文件」，執行**段落級動態差異**與**條款語義對齊**。
+            3. **智慧分析**：在功能頁輸入查詢（例：`責任上限`、`解約條款`），取得**差異重點**與**修訂建議**。
             4. **歷程與釘選**：所有分析操作會被記錄，支援**釘選**與**標籤**便於審計。
             """
         )
