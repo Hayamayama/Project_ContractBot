@@ -1,9 +1,3 @@
-<<<<<<< HEAD
-=======
-# 檔案名稱: Home.py
-# (此版本已移除介紹頁，直接進入主應用程式以提升性能)
-
->>>>>>> origin/main
 import streamlit as st
 import os
 import tempfile
@@ -29,7 +23,6 @@ from streamlit_option_menu import option_menu
 # --- 1. 頁面設定 ---
 st.set_page_config(page_title="AI 合約動態比對工具", layout="wide")
 
-<<<<<<< HEAD
 # 安永Logo
 st.markdown(
     """
@@ -50,17 +43,11 @@ with st.sidebar:
     st.image("logo.png", width=100) 
     
 
-=======
->>>>>>> origin/main
 # --- 2. 環境變數與核心設定 ---
 load_dotenv()
 INDEX_NAME = "contract-assistant"
 
 # --- 3. Session State 初始化 ---
-<<<<<<< HEAD
-=======
-# (移除了 app_mode 相關的 state)
->>>>>>> origin/main
 if 'comparison_results' not in st.session_state:
     st.session_state.comparison_results = None
 
@@ -154,7 +141,6 @@ def run_comparison(template_retriever, uploaded_retriever, review_points, temper
 
 # --- 5. UI 渲染函式 ---
 
-<<<<<<< HEAD
 def draw_main_app():
     """首頁視覺升級：ChatGPT 風格 Hero、玻璃質感卡片、精緻歷程區"""
 
@@ -226,29 +212,16 @@ def draw_main_app():
     """, unsafe_allow_html=True)
 
     # ===== HELPERS =====
-=======
-# (函式 draw_intro_page() 已被完整刪除)
-
-def draw_main_app():
-    """繪製主應用程式 (精確復刻 CB_Mainapp2.2.py)"""
-    st.title("🚀 AI 合約動態比對工具")
-    st.markdown("##### 您可以上傳參考文件作為永久比對基準，然後上傳待審文件進行即時分析。You may upload a reference document to serve as a permanent comparison baseline, and subsequently upload the document under review for real-time analysis.")
-    
->>>>>>> origin/main
     def _find_by_id(qid):
         for it in st.session_state.search_history:
             if it["id"] == qid: return it
         return None
-<<<<<<< HEAD
 
-=======
->>>>>>> origin/main
     def _df(items):
         return pd.DataFrame([{
             "id": it["id"], 
             "query": it["query"], 
             "timestamp": it["timestamp"], 
-<<<<<<< HEAD
             "tags": ", ".join(it.get("tags", [])),
             "pinned": it.get("pinned", False), 
             "top_title": (it["results"][0]["title"] if it.get("results") else ""),
@@ -281,12 +254,4 @@ def draw_main_app():
     )
 
 # --- 6. 主邏輯 ---
-=======
-            "tags": ", ".join(it.get("tags", [])), "pinned": it.get("pinned", False), 
-            "top_title": (it["results"][0]["title"] if it.get("results") else ""),
-            "top_path": (it["results"][0]["path"] if it.get("results") else ""),} for it in items])
-
-# --- 6. 主邏輯 ---
-# (簡化主邏輯，直接執行主應用程式)
->>>>>>> origin/main
 draw_main_app()
