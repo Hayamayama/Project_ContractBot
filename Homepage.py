@@ -41,6 +41,16 @@ st.markdown(
 
 with st.sidebar:
     st.image("logo.png", width=100) 
+    # --- 👇 新增的遊戲區塊 ---
+    st.markdown("---") # 畫一條分隔線
+    st.subheader("🎮 小遊戲時間") # 加上標題
+
+    # 使用 iframe 嵌入網頁遊戲
+    game_url = "https://www.agame.com/game/subway-surfers-clone"
+    st.components.v1.iframe(game_url, height=450)
+
+    st.caption("遊戲來源：Agame.com")
+    # --- 遊戲區塊結束 ---
     
 
 # --- 2. 環境變數與核心設定 ---
