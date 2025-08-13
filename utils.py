@@ -29,9 +29,13 @@ def fetch_pinecone_namespaces(index_name):
 def extract_revisions_from_single_doc(file_path, nsmap):
     """從單一 .docx 檔案中，直接讀取追蹤修訂的內容。"""
 <<<<<<< HEAD
+    # (此函式內容與您提供的版本完全相同)
+=======
+<<<<<<< HEAD
 =======
     # (此函式內容與您提供的版本完全相同)
 >>>>>>> d560d0fd57ffdc9967e9e75b08c3836376ca651a
+>>>>>>> origin/main
     doc = docx.Document(file_path)
     extracted_data = []
     for para in doc.paragraphs:
@@ -42,6 +46,8 @@ def extract_revisions_from_single_doc(file_path, nsmap):
             for run in runs:
                 text_nodes = run.xpath('.//w:t', namespaces=nsmap)
                 text = text_nodes[0].text if text_nodes and text_nodes[0].text else ""
+<<<<<<< HEAD
+=======
 <<<<<<< HEAD
                 if run.xpath('.//w:ins', namespaces=nsmap):
                     revised_text += text
@@ -83,6 +89,7 @@ def extract_comments_from_docx(file_path):
                 f"■ 法務註解:\n{comment_text}"
             )
 =======
+>>>>>>> origin/main
                 if run.xpath('.//w:ins', namespaces=nsmap): revised_text += text
                 elif run.xpath('.//w:del', namespaces=nsmap): original_text += text
                 else:
@@ -105,7 +112,10 @@ def extract_comments_from_docx(file_path):
         comment_text = comment.text.strip()
         if original_text and comment_text:
             wisdom_chunk = (f"【審閱案例 - 法務專家註解】\n...") # (格式化字串省略)
+<<<<<<< HEAD
+=======
 >>>>>>> d560d0fd57ffdc9967e9e75b08c3836376ca651a
+>>>>>>> origin/main
             extracted_data.append(wisdom_chunk)
     return extracted_data
 
@@ -121,7 +131,11 @@ def ingest_docs_to_pinecone(docs, index_name, namespace):
         index_name=index_name,
         namespace=namespace
 <<<<<<< HEAD
+    )
+=======
+<<<<<<< HEAD
     ) 
 =======
     )
 >>>>>>> d560d0fd57ffdc9967e9e75b08c3836376ca651a
+>>>>>>> origin/main

@@ -143,8 +143,13 @@ st.title("控制中心 Control Center")
 pins = sum(1 for it in st.session_state.search_history if it.get("pinned"))
 
 top = option_menu(
+<<<<<<< HEAD
+    None, ["Settings", "Search"],
+    icons=["gear-fill", "search"],
+=======
     None, ["Settings", "Search", "New"],
     icons=["gear-fill", "search", "rocket-takeoff"],
+>>>>>>> origin/main
     menu_icon="cast", default_index=1, orientation="horizontal",
 )
 
@@ -204,6 +209,8 @@ if top == "Search":
                            all_df.to_csv(index=False).encode("utf-8"),
                            file_name="search_history.csv", mime="text/csv")
 
+<<<<<<< HEAD
+=======
 # ----- New (FULL RESTORED CONTENT) -----
 if top == "New":
     st.subheader("可自訂的審查項目 Customizable Review Parameters")
@@ -266,6 +273,7 @@ if top == "New":
         )
         st.rerun()
 
+>>>>>>> origin/main
 # ----- Results -----
 if st.session_state.get("comparison_results"):
     st.subheader("📜 合約比對分析報告")

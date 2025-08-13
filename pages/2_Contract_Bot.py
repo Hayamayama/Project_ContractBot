@@ -69,7 +69,11 @@ def pinecone_retriever(namespace: str, k: int):
 
 
 # -----------------------------
+<<<<<<< HEAD
+# 3) Session-state
+=======
 # 3) Session-state (no attribute type annotations)
+>>>>>>> origin/main
 # -----------------------------
 st.session_state.setdefault("messages", [])
 st.session_state.setdefault("faiss_store", None)
@@ -81,6 +85,19 @@ st.session_state.setdefault("streaming", True)
 
 
 # -----------------------------
+<<<<<<< HEAD
+# 4) Sidebar — Chat Settings & Knowledge Sources
+# -----------------------------
+with st.sidebar:
+    st.header("Chat Settings")
+    st.session_state["chat_model"] = st.selectbox("Model", options=["gpt-4o", "gpt-4o-mini"], index=0,)
+
+    with st.expander("Top-k per Retriever"):
+        st.caption("Number of top results to keep from each retriever before merging. Lower = faster & more focused; higher = broader & potentially more varied results.")
+        st.session_state["top_k"] = st.slider("Top-k per Retriever", 1, 10, st.session_state["top_k"])
+    
+    st.session_state["streaming"] = st.toggle("Stream responses", value=st.session_state["streaming"])
+=======
 # 4) Sidebar — sources & settings
 # -----------------------------
 with st.sidebar:
@@ -99,6 +116,7 @@ with st.sidebar:
     st.session_state["streaming"] = st.toggle(
         "Stream responses", value=st.session_state["streaming"]
     )
+>>>>>>> origin/main
 
     st.divider()
     st.subheader("Knowledge Sources")
@@ -259,10 +277,17 @@ def answer_with_rag(question: str) -> Dict:
 # -----------------------------
 # 7) Chat UI
 # -----------------------------
+<<<<<<< HEAD
+st.title("合約聊天機器人 ContractBot")
+st.caption("Ask questions across selected Pinecone namespaces and any PDFs you upload in this session.")
+
+with st.expander("Prompt Suggestions"):
+=======
 st.title("💬 ContractBot – Document Chat")
 st.caption("Ask questions across selected Pinecone namespaces and any PDFs you upload in this session.")
 
 with st.expander("Quick suggestions"):
+>>>>>>> origin/main
     st.write("• 這份 NDA 的保密義務何時終止？\n\n• 條款對於機密資訊的例外揭露包含哪些情況？\n\n• 若對方違約，我方可要求的補救措施為何？")
 
 # Replay messages
@@ -299,6 +324,97 @@ if user_q:
 st.divider()
 col1, col2, col3 = st.columns(3)
 with col1:
+<<<<<<< HEAD
+    if st.button("Clear chat", use_container_width=True):
+        st.session_state["messages"] = []
+        st.rerun()
+with col2:
+    if st.button("Refresh namespaces", use_container_width=True):
+        st.session_state["namespaces"] = list_namespaces(INDEX_NAME)
+        st.success("Namespaces updated.")
+with col3:
+    import io
+    import json
+    from textwrap import wrap
+    st.caption("Export conversation")
+    export_fmt = st.selectbox("Format", ["JSON", "TXT", "PDF"], index=0, label_visibility="collapsed")
+
+    ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+    fname_base = f"contractbot_chat_{ts}"
+
+    data = None
+    mime = "application/octet-stream"
+    fname = f"{fname_base}.bin"
+
+    if export_fmt == "JSON":
+        fname = f"{fname_base}.json"
+        data = json.dumps(st.session_state["messages"], ensure_ascii=False, indent=2).encode("utf-8")
+        mime = "application/json"
+
+    elif export_fmt == "TXT":
+        # Simple readable transcript
+        lines = []
+        for m in st.session_state.get("messages", []):
+            role = m.get("role", "").upper()
+            content = (m.get("content") or "").strip()
+            lines.append(f"[{role}] {content}")
+        txt = "\n\n".join(lines)
+        data = txt.encode("utf-8")
+        fname = f"{fname_base}.txt"
+        mime = "text/plain"
+
+    elif export_fmt == "PDF":
+        try:
+            from reportlab.lib.pagesizes import letter
+            from reportlab.pdfgen import canvas
+
+            buffer = io.BytesIO()
+            c = canvas.Canvas(buffer, pagesize=letter)
+            width, height = letter
+
+            margin_x = 72  
+            margin_y = 72
+            y = height - margin_y
+            line_height = 14
+
+            c.setTitle(fname_base)
+            c.setFont("Helvetica", 11)
+
+            for m in st.session_state.get("messages", []):
+                role = m.get("role", "").upper()
+                content = (m.get("content") or "").strip()
+                line = f"[{role}] {content}"
+
+                # Wrap long lines
+                for seg in wrap(line, 95):
+                    if y <= margin_y:
+                        c.showPage()
+                        c.setFont("Helvetica", 11)
+                        y = height - margin_y
+                    c.drawString(margin_x, y, seg)
+                    y -= line_height
+                y -= 6  # extra spacing between messages
+
+            c.save()
+            data = buffer.getvalue()
+            buffer.close()
+            fname = f"{fname_base}.pdf"
+            mime = "application/pdf"
+        except Exception:
+            st.error("PDF export requires the 'reportlab' package. Install it with:\n\npip install reportlab")
+
+    # Always render the download button (if data is ready)
+    st.download_button(
+        f"Download conversation ({export_fmt})",
+        data=data if data is not None else b"",
+        file_name=fname,
+        mime=mime,
+        use_container_width=True,
+        disabled=(data is None)  # disable only if we couldn't build the chosen format
+    )
+
+
+=======
     if st.button("Clear chat"):
         st.session_state["messages"] = []
         st.rerun()
@@ -312,3 +428,4 @@ with col3:
     fname = f"contractbot_chat_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
     b = json.dumps(st.session_state["messages"], ensure_ascii=False, indent=2).encode("utf-8")
     st.download_button("Download conversation (JSON)", data=b, file_name=fname, mime="application/json")
+>>>>>>> origin/main
