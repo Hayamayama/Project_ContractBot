@@ -143,6 +143,10 @@ def run_comparison(template_retriever, uploaded_retriever, review_points, temper
 # ---------- UI ----------
 st.title("控制中心 Control Center")
 
+# 檢查 URL 中是否有 'code' 參數，若有則表示是從 Google OAuth 回來的
+if "code" in st.query_params:
+    gdrive.process_oauth_callback()
+
 pins = sum(1 for it in st.session_state.search_history if it.get("pinned"))
 
 top = option_menu(
