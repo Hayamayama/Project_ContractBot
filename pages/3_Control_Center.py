@@ -143,77 +143,184 @@ def run_comparison(template_retriever, uploaded_retriever, review_points, temper
 # ---------- UI ----------
 st.title("控制中心 Control Center")
 
-# 檢查 URL 中是否有 'code' 參數，若有則表示是從 Google OAuth 回來的
-if "code" in st.query_params:
-    gdrive.process_oauth_callback()
-
 pins = sum(1 for it in st.session_state.search_history if it.get("pinned"))
 
 top = option_menu(
-    None, ["Settings", "Search"],
+    None, ["設定 Settings", "搜尋 Search"],
     icons=["gear-fill", "search"],
     menu_icon="cast", default_index=1, orientation="horizontal",
 )
 
 # ----- Settings -----
-if top == "Settings":
+if top == "設定 Settings":
     st.subheader('模型參數 Model Parameters')
     st.session_state.temperature = st.slider("參數溫度 Temperature", 0.0, 2.0, st.session_state.temperature, 0.1)
     with st.expander("What does temperature do?"):
         st.caption("Lower = focused & predictable; higher = varied & creative.")
-    st.session_state.max_tokens = st.slider("最大字元數 Max Tokens", 1, 4096, st.session_state.max_tokens)
+    st.session_state.max_tokens = st.slider("最大字元數 Max Tokens", 0, 4096, st.session_state.max_tokens, 128)
     with st.expander("What do tokens do?"):
         st.caption("Max Tokens limits the length of AI responses.")
-    st.toggle("Streaming responses", value=True)
-    st.text_input("System prompt preset", placeholder="You are a helpful analyst…")
+    
+sub = ""
 
 # ----- Search -----
-if top == "Search":
+if top == "搜尋 Search":
     st.subheader("搜尋控制台 Search Console")
     sub = option_menu(
-        None, ["Query History", f"Pinned ({pins})", "Tools"],
+        None, ["查詢歷史 Query History", f"釘選 Pinned ({pins})", "其他工具 Tools"],
         icons=["clock-history", "pin-angle-fill", "wrench-adjustable-circle"],
         menu_icon="cast", default_index=0, orientation="horizontal",
     )
 
-    if sub == "Query History":
-        q = st.text_input("Search your past queries…", placeholder="Type to filter in real-time")
-        c1, c2 = st.columns([3, 1])
-        tag_filter = c1.text_input("Filter by tag", placeholder="finance / product / …")
-        only_pinned = c2.toggle("Pinned only", value=False)
-        items = st.session_state.search_history
-        if q: items = [it for it in items if q.lower() in it["query"].lower()]
-        if tag_filter: items = [it for it in items if tag_filter.lower() in [t.lower() for t in it.get("tags", [])]]
-        if only_pinned: items = [it for it in items if it.get("pinned")]
-        items = sorted(items, key=lambda x: x["timestamp"], reverse=True)
-        if not items:
-            st.info("No matching history.")
+    # --- helper used by "Queue History" and "Pinned" sections -------------------------------------------
+def _toggle_pin(_id: str):
+    item = _find_by_id(_id)
+    if not item:
+        return
+    item["pinned"] = not item.get("pinned", False)
+    # keep the toggle UI state in sync on reruns
+    st.session_state[f"pin_{_id}"] = item["pinned"]
+
+
+# --- Query History -----------------------------------------------------------
+if sub == "查詢歷史 Query History":
+    q = st.text_input("輸入關鍵字篩選 Search using Keywords")
+    c1, c2 = st.columns([3, 1])
+    tag_filter = c1.text_input("依標籤篩選 Filter by Tag")
+    only_pinned = c2.toggle("僅顯示釘選 Pinned Only", value=False)
+
+    items = list(st.session_state.search_history)  
+
+    # text filter
+    if q:
+        ql = q.lower()
+        items = [it for it in items if ql in it.get("query", "").lower()]
+
+    # tag filter (case-insensitive)
+    if tag_filter:
+        tf = tag_filter.lower()
+        items = [
+            it for it in items
+            if tf in [str(t).lower() for t in it.get("tags", [])]
+        ]
+
+    # pinned-only filter
+    if only_pinned:
+        items = [it for it in items if it.get("pinned")]
+
+    # newest first
+    items = sorted(items, key=lambda x: x.get("timestamp", ""), reverse=True)
+
+    if not items:
+        st.info("No matching history.")
+    else:
+        for it in items:
+            ts_raw = it.get("timestamp", "")
+            try:
+                ts_disp = datetime.fromisoformat(ts_raw).strftime("%b %d, %Y %H:%M")
+            except Exception:
+                ts_disp = ts_raw or "—"
+
+            with st.expander(f"**{it.get('query','(no query)')}** · {ts_disp}"):
+                st.toggle(
+                    "Pinned",
+                    key=f"pin_{it['id']}",
+                    value=it.get("pinned", False),
+                    on_change=_toggle_pin,
+                    args=(it["id"],),
+                )
+
+
+# --- Pinned tab --------------------------------------------------------------
+elif sub.startswith("釘選 Pinned"):
+    pinned_items = [it for it in st.session_state.search_history if it.get("pinned")]
+    if pinned_items:
+        df = _df(pinned_items)
+        # (optional) hide the 'pinned' column in the table
+        df = df.drop(columns=["pinned"], errors="ignore")
+        # show newest first if the df has a 'timestamp' column
+        if "timestamp" in df.columns:
+            # avoid exceptions if non-ISO strings are present
+            try:
+                df = df.sort_values("timestamp", ascending=False)
+            except Exception:
+                pass
+        st.dataframe(df, use_container_width=True, hide_index=True)
+    else:
+        st.info("No pinned items yet.")
+
+# --- Tools tab --------------------------------------------------------------
+elif sub == "其他工具 Tools":
+    st.markdown("##### 快速匯出 Quick Exports")
+
+    items = list(st.session_state.search_history)
+    all_df = _df(items)
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    c1, c2, c3 = st.columns([1, 1, 1])  #equal width columns
+
+    # Export ALL (JSON)
+    c1.download_button(
+        "Export all (JSON)",
+        json.dumps(items, ensure_ascii=False, indent=2).encode("utf-8"),
+        file_name=f"search_history_{ts}.json",
+        mime="application/json",
+        disabled=not items,
+        use_container_width=True
+    )
+
+    # Export ALL (CSV)
+    c2.download_button(
+        "Export all (CSV)",
+        (all_df.to_csv(index=False).encode("utf-8") if not all_df.empty else b""),
+        file_name=f"search_history_{ts}.csv",
+        mime="text/csv",
+        disabled=all_df.empty,
+        use_container_width=True
+    )
+
+    # Export PINNED (CSV)
+    pinned_items = [it for it in items if it.get("pinned")]
+    pinned_df = _df(pinned_items)
+
+    c3.download_button(
+        "Export pinned (CSV)",
+        (pinned_df.to_csv(index=False).encode("utf-8") if not pinned_df.empty else b""),
+        file_name=f"search_history_pinned_{ts}.csv",
+        mime="text/csv",
+        disabled=pinned_df.empty,
+        use_container_width=True
+    )
+
+    st.markdown("##### Maintenance")
+    m1, m2, m3 = st.columns(3)
+
+    # Clear all history
+    if m1.button("Clear all history", use_container_width=True, type="secondary", disabled=not items):
+        st.session_state.search_history = []
+        st.success("History cleared. Rerun to see changes.")
+        st.stop()
+
+    # Unpin all
+    if m2.button("Unpin all", use_container_width=True, type="secondary", disabled=not pinned_items):
+        for it in st.session_state.search_history:
+            it["pinned"] = False
+        st.success("All items unpinned.")
+
+    # Small preview so users see what they'll export
+    with st.expander("Preview (first 100 rows)"):
+        if all_df.empty:
+            st.info("No history to preview.")
         else:
-            for it in items:
-                with st.expander(f"**{it['query']}** · {datetime.fromisoformat(it['timestamp']).strftime('%b %d, %Y %H:%M')}"):
-                    st.toggle(
-                        "Pinned", key=f"pin_{it['id']}", value=it.get("pinned"),
-                        on_change=lambda _id=it["id"]: _find_by_id(_id).__setitem__("pinned", not _find_by_id(_id).get("pinned"))
-                    )
+            preview_df = all_df.copy()
+            # Keep preview readable; hide internal flags if you like
+            preview_df = preview_df.drop(columns=["pinned"], errors="ignore")
+            st.dataframe(preview_df.head(100), use_container_width=True, hide_index=True)
 
-    if sub.startswith("Pinned"):
-        df = _df([it for it in st.session_state.search_history if it.get("pinned")])
-        st.dataframe(df, use_container_width=True, hide_index=True) if not df.empty else st.info("No pinned items yet.")
-
-    if sub == "Tools":
-        all_df = _df(st.session_state.search_history)
-        st.markdown("##### Quick Exports")
-        c1, c2 = st.columns(2)
-        c1.download_button("Export all (JSON)",
-                           json.dumps(st.session_state.search_history, ensure_ascii=False, indent=2).encode("utf-8"),
-                           file_name="search_history.json")
-        c2.download_button("Export all (CSV)",
-                           all_df.to_csv(index=False).encode("utf-8"),
-                           file_name="search_history.csv", mime="text/csv")
 
 # ----- Results -----
 if st.session_state.get("comparison_results"):
-    st.subheader("📜 合約比對分析報告")
+    st.subheader("合約比對分析報告")
     for topic, result in st.session_state.comparison_results.items():
         with st.expander(f"**審查項目：{topic}**", expanded=True):
             st.markdown(result, unsafe_allow_html=True)
