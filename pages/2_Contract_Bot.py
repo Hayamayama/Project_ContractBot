@@ -26,9 +26,11 @@ from langchain.schema import HumanMessage, AIMessage, SystemMessage
 # 1) Page & basic config
 # -----------------------------
 st.set_page_config(page_title="ContractBot – Chat", layout="wide")
+# --- 【修改】: 使用 st.logo() ---
+st.logo("logo.png")
+
 load_dotenv()
 INDEX_NAME = os.environ.get("PINECONE_INDEX_NAME", "contract-assistant")
-
 
 # -----------------------------
 # 2) Helpers
@@ -81,19 +83,21 @@ st.session_state.setdefault("streaming", True)
 
 
 # -----------------------------
-# 4) Sidebar — Chat Settings & Knowledge Sources
+# 4) Sidebar — Controls (Logo, Settings, Sources)
 # -----------------------------
 with st.sidebar:
+    # --- Chat Settings (現在是側邊欄的第一個區塊) ---
     st.header("Chat Settings")
     st.session_state["chat_model"] = st.selectbox("Model", options=["gpt-4o", "gpt-4o-mini"], index=0,)
 
     with st.expander("Top-k per Retriever"):
         st.caption("Number of top results to keep from each retriever before merging. Lower = faster & more focused; higher = broader & potentially more varied results.")
         st.session_state["top_k"] = st.slider("Top-k per Retriever", 1, 10, st.session_state["top_k"])
-    
-    st.session_state["streaming"] = st.toggle("Stream responses", value=st.session_state["streaming"])
 
+    st.session_state["streaming"] = st.toggle("Stream responses", value=st.session_state["streaming"])
     st.divider()
+
+    # --- Knowledge Sources (現在是側邊欄的第二個區塊) ---
     st.subheader("Knowledge Sources")
     st.caption("Mix your permanent Pinecone knowledge with ad-hoc uploads.")
 
@@ -339,7 +343,7 @@ with col3:
             c = canvas.Canvas(buffer, pagesize=letter)
             width, height = letter
 
-            margin_x = 72  
+            margin_x = 72
             margin_y = 72
             y = height - margin_y
             line_height = 14
@@ -379,5 +383,3 @@ with col3:
         use_container_width=True,
         disabled=(data is None)  # disable only if we couldn't build the chosen format
     )
-
-
