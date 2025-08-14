@@ -1,8 +1,7 @@
-# pages/Control_Center.py
-
+# pages/Review_Parameters.py
 import os, tempfile
 import streamlit as st
-from datetime import datetime  # (kept if you log timestamps elsewhere)
+from datetime import datetime
 from dotenv import load_dotenv
 
 # Data / Vector stuff
@@ -14,6 +13,11 @@ from langchain.schema.output_parser import StrOutputParser
 from langchain_community.vectorstores import FAISS
 from langchain_pinecone import PineconeVectorStore
 from pinecone import Pinecone
+
+# --- 【修改】: 增加頁面設定並使用 st.logo() ---
+# 每個多頁應用程式的頁面都應該有自己的頁面設定
+st.set_page_config(page_title="可自訂的審查項目", layout="wide")
+st.logo("logo.png")
 
 load_dotenv()  # ensure env vars like PINECONE_API_KEY are loaded
 
