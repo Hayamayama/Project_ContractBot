@@ -181,10 +181,10 @@ def draw_main_app():
     # ===== HERO =====
     st.markdown("""
     <div class="hero-wrap">
-      <span class="kicker">AI合約動態比對工具 Contract Analysis Tool</span>
-      <h1 class="hero">上傳基準 ➜ 上傳審閱 ➜ 即時差異、條款風險與修訂建議</h1>
-      <p class="sub">您可以上傳參考文件作為永久比對基準，然後上傳待審文件進行即時分析。<br>
-      Upload a reference baseline and then a document under review for real-time side-by-side analysis.</p>
+      <span class="kicker">AI 合約動態比對工具 Contract Analysis Tool</span>
+        <h1 class="hero">運用創新高速 AI，加速契約分析<br>
+        <span class="translation">Accelerate Contract Analysis with Innovative Turbocharged AI</span></h1>
+      <p class="sub">上傳基準 ➜ 上傳審閱 ➜ 即時差異、條款風險與修訂建議。您可以上傳參考文件作為永久比對基準，然後上傳待審文件進行即時分析。</p>
       <div class="btn-row">
         <a class="btn primary" href="#upload">開始上傳 / Get Started</a>
         <a class="btn" href="#how">如何運作 / How it works</a>
