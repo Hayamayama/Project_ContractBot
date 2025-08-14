@@ -173,3 +173,29 @@ streamlit run Home.py
 
 ### https://project-contractbot.streamlit.app
 >>>>>>> origin/main
+graph TD
+    subgraph "使用者介面 (Streamlit UI)"
+        A1["Admin Panel (管理後台)"]
+        A2["Homepage / Review (主頁/分析頁)"]
+        A3["Analysis Saving (歸檔頁)"]
+    end
+
+    subgraph "後端處理 (LangChain & Python)"
+        B1["文件讀取與切割"]
+        B2["文字向量化"]
+        B3["智慧檢索 (Retrieval)"]
+    end
+
+    subgraph "資料儲存 (Data Stores)"
+        C1["<b>Pinecone (永久向量庫)</b>"]
+        C2["<b>FAISS (暫存向量庫)</b>"]
+        C3["<b>Amazon S3 (永久檔案庫)</b>"]
+    end
+
+    A1 -- "1. 上傳參考文件" --> B1
+    B1 -- "2. 提取與切割" --> B2
+    B2 -- "3. 存入 Pinecone" --> C1
+    A2 -- "4. 上傳待審文件" --> C2
+    A2 -- "5. 執行分析" --> B3
+    B3 -- "從 Pinecone/FAISS 檢索" --> C1 & C2
+    A3 -- "8. 同意歸檔" --> C3
