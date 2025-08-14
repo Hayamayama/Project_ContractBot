@@ -87,25 +87,25 @@ st.session_state.setdefault("streaming", True)
 # -----------------------------
 with st.sidebar:
     # --- Chat Settings (現在是側邊欄的第一個區塊) ---
-    st.header("Chat Settings")
-    st.session_state["chat_model"] = st.selectbox("Model", options=["gpt-4o", "gpt-4o-mini"], index=0,)
+    st.header("聊天設定 Chat Settings")
+    st.session_state["chat_model"] = st.selectbox("語言模型 Language Model", options=["gpt-4o", "gpt-4o-mini"], index=0,)
 
     with st.expander("Top-k per Retriever"):
         st.caption("Number of top results to keep from each retriever before merging. Lower = faster & more focused; higher = broader & potentially more varied results.")
         st.session_state["top_k"] = st.slider("Top-k per Retriever", 1, 10, st.session_state["top_k"])
 
-    st.session_state["streaming"] = st.toggle("Stream responses", value=st.session_state["streaming"])
+    st.session_state["streaming"] = st.toggle("即時回應 Stream Responses", value=st.session_state["streaming"])
     st.divider()
 
     # --- Knowledge Sources (現在是側邊欄的第二個區塊) ---
-    st.subheader("Knowledge Sources")
-    st.caption("Mix your permanent Pinecone knowledge with ad-hoc uploads.")
+    st.subheader("知識來源 Knowledge Sources")
+    st.caption("將 Pinecone 的永久知識與臨時上傳的檔案整合搜尋 Mix your permanent Pinecone knowledge with ad-hoc uploads.")
 
     # Select Pinecone namespaces to include
     if not st.session_state["namespaces"]:
-        st.info("No Pinecone namespaces found yet. Add one from your main app.")
+        st.info("尚未找到任何 Pinecone 命名空間，請從主程式新增 No Pinecone namespaces found yet. Add one from your main app.")
     selected_namespaces = st.multiselect(
-        "Pinecone namespaces",
+        "Pinecone Namespaces",
         options=st.session_state["namespaces"],
         default=st.session_state["namespaces"][:1] if st.session_state["namespaces"] else [],
         help="Choose one or more reference baselines."
@@ -116,7 +116,7 @@ with st.sidebar:
     uploaded_pdfs = st.file_uploader(
         "Drag in one or more PDFs", type=["pdf"], accept_multiple_files=True, key="chat_uploader"
     )
-    if st.button("Process uploads"):
+    if st.button("開始處理上傳檔案 Process Uploads"):
         if uploaded_pdfs:
             with st.spinner("Indexing PDFs into a temporary vector store…"):
                 all_docs = []
