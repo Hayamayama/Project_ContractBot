@@ -1,4 +1,4 @@
-# pages/Review_Parameters.py
+# pages/4_Review_Parameters.py
 import os, tempfile
 import streamlit as st
 from datetime import datetime
@@ -189,18 +189,38 @@ if st.session_state.get("start_compare_btn") and target_file and selected_namesp
 
     temp = st.session_state.get('temperature', 0.7)
     max_tok = st.session_state.get('max_tokens', 256)
-    st.session_state.comparison_results = run_comparison(
-        template_retriever,
-        uploaded_retriever,
-        CORE_REVIEW_POINTS,
-        temp,
-        max_tok
-    )
-    st.rerun()
+    
+    # 獲取所有勾選的審查項目
+    active_review_points = [p for p in CORE_REVIEW_POINTS if st.session_state.get(p, False)]
+    custom_points = [line.strip() for line in st.session_state.get("core_points_text", "").split('\n') if line.strip()]
+    final_review_points = active_review_points + custom_points
+    
+    if not final_review_points:
+        st.error("請至少選擇或新增一個審查項目。")
+    else:
+        st.session_state.comparison_results = run_comparison(
+            template_retriever,
+            uploaded_retriever,
+            final_review_points,
+            temp,
+            max_tok
+        )
+        st.rerun()
 
-# (Optional) render results if they exist
-if st.session_state.comparison_results:
-    st.header("分析報告 Analysis Results")
+# --- 【修改部分】 ---
+# 在報告生成後，引導使用者前往新的歸檔頁面
+if st.session_state.get("comparison_results"):
+    st.balloons()
+    st.header("✅ 分析報告已生成！")
+    st.info("您可以初步檢視下方的分析結果。完整的歸檔與 AI 學習流程，請前往下一個頁面操作。")
+    
+    # 新增一個清晰的按鈕引導使用者
+    st.page_link("pages/5_Analysis_saving.py", label="下一步：前往「分析歸檔與學習」頁面", icon="🧠", use_container_width=True)
+
+    st.divider()
+    
+    # 這裡仍然可以保留展開的報告，讓使用者快速預覽
+    st.subheader("分析結果預覽")
     for topic, md in st.session_state.comparison_results.items():
         with st.expander(topic, expanded=False):
             st.markdown(md)
