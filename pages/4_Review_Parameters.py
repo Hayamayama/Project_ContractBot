@@ -215,7 +215,7 @@ if st.session_state.get("comparison_results"):
     st.info("您可以初步檢視下方的分析結果。完整的歸檔與 AI 學習流程，請前往下一個頁面操作。")
     
     # 新增一個清晰的按鈕引導使用者
-    st.page_link("pages/5_Analysis_saving.py", label="下一步：前往「分析歸檔與學習」頁面", icon="🧠", use_container_width=True)
+    st.page_link("pages/5_Analysis_Saving.py", label="下一步：前往「分析歸檔與學習」頁面", icon="🧠", use_container_width=True)
 
     st.divider()
     
