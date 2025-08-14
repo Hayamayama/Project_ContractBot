@@ -12,3 +12,6 @@ unstructured[docx,pdf]
 faiss-cpu
 tiktoken
 pandas
+google-api-python-client
+google-auth-oauthlib
+google-auth-httplib2
