@@ -172,30 +172,60 @@ streamlit run Home.py
 ## Streamlit Community Cloud 網址
 
 ### https://project-contractbot.streamlit.app
->>>>>>> origin/main
+
+
+```mermaid
 graph TD
     subgraph "使用者介面 (Streamlit UI)"
         A1["Admin Panel (管理後台)"]
         A2["Homepage / Review (主頁/分析頁)"]
         A3["Analysis Saving (歸檔頁)"]
+        A4["Contract Bot (問答機器人)"]
     end
 
     subgraph "後端處理 (LangChain & Python)"
-        B1["文件讀取與切割"]
-        B2["文字向量化"]
-        B3["智慧檢索 (Retrieval)"]
+        B1["文件讀取與切割<br>(PyPDFLoader, python-docx)"]
+        B2["文字向量化<br>(OpenAI Embeddings)"]
+        B3["智慧檢索 (Retrieval)<br>(FAISS, Pinecone, EnsembleRetriever)"]
+        B4["AI 生成 (Generation)<br>(GPT-4o, PromptTemplate)"]
     end
 
     subgraph "資料儲存 (Data Stores)"
-        C1["<b>Pinecone (永久向量庫)</b>"]
-        C2["<b>FAISS (暫存向量庫)</b>"]
-        C3["<b>Amazon S3 (永久檔案庫)</b>"]
+        C1["<b>Pinecone (永久向量庫)</b><br>- 參考文件 (各為獨立 Namespace)<br>- GCO 經驗 (gco-case-studies)<br>- 優良分析 (approved-analyses)"]
+        C2["<b>FAISS (暫存向量庫)</b><br>- 當前待審文件 (Session-based)"]
+        C3["<b>Amazon S3 (永久檔案庫)</b><br>- 已歸檔的分析報告 (.md)"]
     end
 
-    A1 -- "1. 上傳參考文件" --> B1
-    B1 -- "2. 提取與切割" --> B2
-    B2 -- "3. 存入 Pinecone" --> C1
-    A2 -- "4. 上傳待審文件" --> C2
-    A2 -- "5. 執行分析" --> B3
-    B3 -- "從 Pinecone/FAISS 檢索" --> C1 & C2
-    A3 -- "8. 同意歸檔" --> C3
+    %% Flow 1: 知識庫建立 (Admin Panel)
+    A1 -- "1. 上傳參考文件 (PDF) 或 GCO 經驗 (DOCX)" --> B1
+    B1 -- "2. 提取文字並切割成區塊" --> B2
+    B2 -- "3. 轉換為向量後存入 Pinecone" --> C1
+
+    %% Flow 2: 合約比對分析 (Homepage / Review)
+    A2 -- "4. 選擇參考文件 (Namespace)<br>   上傳待審文件 (PDF)<br>   定義審查重點" --> B3
+    B3 -- "5a. 從 Pinecone 檢索參考條款" --> C1
+    B3 -- "5b. 從 FAISS 檢索待審條款" --> C2
+    B3 -- "6. 將相關條款與審查重點<br>   組合成 Prompt" --> B4
+    B4 -- "7. GPT-4o 生成分析報告" --> A2
+    A2 -- "將報告結果暫存<br>並引導至歸檔頁" --> A3
+
+    %% Flow 3: 分析歸檔與再學習 (Analysis Saving)
+    A3 -- "8. 使用者檢視報告<br>   勾選並同意歸檔" --> B2
+    B2 -- "9a. 將優質報告文字向量化<br>    存入 Pinecone 的 'approved-analyses' Namespace" --> C1
+    A3 -- "9b. 將報告原文 (.md) 上傳至 S3" --> C3
+
+    %% Flow 4: 問答機器人 (Contract Bot)
+    A4 -- "10. 選擇知識庫 (Namespaces)<br>    輸入自然語言問題" --> B3
+    B3 -- "11. 從 Pinecone/FAISS<br>     檢索最相關的文件片段" --> C1
+    B3 -- " " --> C2
+    B3 -- "12. 組合上下文與問題" --> B4
+    B4 -- "13. GPT-4o 生成回答" --> A4
+
+    classDef user fill:#D6EAF8,stroke:#333,stroke-width:2px;
+    classDef backend fill:#D5F5E3,stroke:#333,stroke-width:2px;
+    classDef data fill:#FCF3CF,stroke:#333,stroke-width:2px;
+
+    class A1,A2,A3,A4 user;
+    class B1,B2,B3,B4 backend;
+    class C1,C2,C3 data;
+    ```
