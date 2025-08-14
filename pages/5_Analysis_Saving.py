@@ -3,29 +3,30 @@ from datetime import datetime
 import tempfile
 import os
 
-# 【關鍵修改】: 導入 S3 的儲存工具函式庫
-import storage_utils as storage
+# 導入專案的共用函式庫
+import google_drive_utils as gdrive
 from utils import ingest_docs_to_pinecone
 from langchain.document_loaders import TextLoader
 
-# --- 頁面設定 ---
+# --- 1. 頁面設定 ---
 st.set_page_config(page_title="分析歸檔與學習", layout="wide")
 st.logo("logo.png")
 
 st.title("🧠 分析歸檔與 AI 再學習")
-st.markdown("在這裡，您可以檢視先前由 AI 生成的分析報告。若您認為某份報告品質優良，可以同意將其儲存，系統會將其歸檔至 Amazon S3，並將其內容作為新的「優良範例」餵給 AI 進行學習。")
+st.markdown("在這裡，您可以檢視先前由 AI 生成的分析報告。若您認為某份報告品質優良，可以同意將其儲存，系統會將其歸檔至指定的 Google Drive 資料夾，並將其內容作為新的「優良範例」餵給 AI 進行學習。")
 st.info("**操作流程**：勾選您認可的優質報告 → 按下儲存按鈕。")
 st.divider()
 
-# --- 核心設定 ---
+# --- 2. 核心設定 ---
 LEARNING_NAMESPACE = "approved-analyses"
 INDEX_NAME = "contract-assistant"
 
-# --- 檢查是否有待處理的報告 ---
+# --- 3. 檢查 session state 中是否有待處理的分析報告 ---
 if 'comparison_results' not in st.session_state or not st.session_state.comparison_results:
     st.warning("目前沒有待處理的分析報告。")
     st.page_link("pages/4_Review_Parameters.py", label="點擊這裡前往「可自訂的審查項目」頁面產生一份新的分析報告。", icon="🚀")
 else:
+    # --- 4. 顯示報告並提供勾選介面 ---
     st.subheader("待歸檔的分析報告")
     st.caption("請勾選您認為分析得當、可作為未來 AI 學習範本的報告項目。")
 
@@ -43,6 +44,7 @@ else:
         
         submitted = st.form_submit_button("💾 歸檔選定的優質報告至雲端", use_container_width=True, type="primary")
 
+    # --- 5. 處理表單提交事件 ---
     if submitted:
         if not approved_topics:
             st.error("您沒有選擇任何要歸檔的報告。")
@@ -56,12 +58,12 @@ else:
                 st.write(f"---")
                 st.write(f"正在處理: **{topic}**")
 
-                # 【關鍵修改】: 呼叫 S3 的上傳函式
-                storage_filename = f"Approved_Analysis_{topic.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.md"
-                upload_success = storage.upload_report_to_storage(content, filename=storage_filename)
+                # 步驟 A: 歸檔至 Google Drive
+                drive_filename = f"Approved_Analysis_{topic.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.md"
+                drive_link = gdrive.upload_report_to_drive(content, filename=drive_filename)
 
-                # 確保雲端上傳成功後才進行學習
-                if upload_success:
+                # 步驟 B: 餵給 Pinecone 進行再學習
+                if drive_link: # 確保 Google Drive 上傳成功後才進行學習
                     try:
                         with st.spinner(f"正在將「{topic}」的知識轉化為 AI 的長期記憶..."):
                             with tempfile.NamedTemporaryFile(delete=False, mode="w+", encoding="utf-8", suffix=".txt") as tmp_file:
