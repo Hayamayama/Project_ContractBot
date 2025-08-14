@@ -125,3 +125,6 @@ streamlit run Homepage.py
 4.  點擊 **"開始自動比對與分析"** 按鈕，等待報告產出。
 5.  報告生成後，點擊連結前往 **Analysis Saving** 頁面。
 6.  **勾選**您認為品質優良的分析項目，並點擊 **"歸檔選定的優質報告至雲端"**。此舉會將報告存入 S3，並同步讓 AI 學習，完成學習循環。
+
+##Streamlit community cloud 網址
+https://project-contractbot.streamlit.app
