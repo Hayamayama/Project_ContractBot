@@ -5,13 +5,16 @@ from langchain.document_loaders import PyPDFLoader, TextLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 # 從我們的共用函式庫中導入函式
 from utils import (
-    extract_revisions_from_single_doc, 
-    extract_comments_from_docx, 
+    extract_revisions_from_single_doc,
+    extract_comments_from_docx,
     ingest_docs_to_pinecone,
     get_pinecone_client
 )
 
-st.set_page_config(page_title="管理後台", page_icon="⚙️")
+st.set_page_config(page_title="管理後台", page_icon="⚙️", layout="wide")
+# --- 【修改】: 使用 st.logo() ---
+st.logo("logo.png")
+
 st.title("知識庫管理後台 Knowledge Base Admin Dashboard")
 st.markdown("在這裡，您可以上傳新的知識、管理 GCO 經驗或進行系統維護。")
 
@@ -22,7 +25,7 @@ st.subheader("上傳 GCO 審閱經驗文件 (.docx)")
 gco_file = st.file_uploader("選擇包含追蹤修訂或註解的 Word 檔案", type="docx", key="gco_uploader")
 
 gco_namespace = st.text_input(
-    "為這份 GCO 經驗指定一個 Namespace", 
+    "為這份 GCO 經驗指定一個 Namespace",
     value="gco-case-studies",
     help="建議將所有 GCO 經驗文件都存入同一個 Namespace，方便統一檢索。"
 )
@@ -47,10 +50,10 @@ if st.button("從 GCO 文件提取並儲存經驗"):
             with tempfile.NamedTemporaryFile(delete=False, mode="w+", encoding="utf-8") as wisdom_txt:
                 wisdom_txt.write("\n".join(all_wisdom_chunks))
                 wisdom_txt_path = wisdom_txt.name
-            
+
             loader = TextLoader(wisdom_txt_path)
             documents = loader.load()
-            
+
             # 上傳至 Pinecone
             ingest_docs_to_pinecone(documents, INDEX_NAME, gco_namespace)
             os.remove(wisdom_txt_path)
@@ -72,12 +75,12 @@ if st.button("處理並儲存參考文件"):
             with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
                 tmp_file.write(ref_file.getvalue())
                 tmp_file_path = tmp_file.name
-            
+
             loader = PyPDFLoader(tmp_file_path)
             documents = loader.load()
             text_splitter = RecursiveCharacterTextSplitter(chunk_size=1500, chunk_overlap=200)
             docs = text_splitter.split_documents(documents)
-            
+
             # 使用檔名作為 Namespace
             ingest_docs_to_pinecone(docs, INDEX_NAME, ref_file.name)
             os.remove(tmp_file_path)
@@ -90,7 +93,7 @@ st.divider()
 # --- 功能三：索引管理 (危險區域) ---
 with st.expander("🚨 危險區域：索引管理"):
     st.warning("警告：以下操作將會永久刪除知識庫中的資料。")
-    
+
     if st.button("清空索引內所有資料 (Delete All Vectors)"):
         try:
             pc = get_pinecone_client()
