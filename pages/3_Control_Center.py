@@ -18,6 +18,9 @@ from pinecone import Pinecone
 
 # ---------- Page setup ----------
 st.set_page_config(page_title="Control Center", layout="wide")
+# --- 【修改】: 使用 st.logo() ---
+st.logo("logo.png")
+
 load_dotenv()
 INDEX_NAME = "contract-assistant"
 
