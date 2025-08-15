@@ -13,3 +13,4 @@ faiss-cpu
 tiktoken
 pandas
 boto3
+reportlab
