@@ -10,7 +10,7 @@ from langchain_pinecone import PineconeVectorStore
 
 # --- Pinecone 連線與操作 ---
 
-@st.cache_resource
+@st.cache_resource(ttl="10m")
 def get_pinecone_client():
     """快取 Pinecone 連線，避免重複初始化。"""
     return Pinecone(api_key=os.environ.get("PINECONE_API_KEY"))
