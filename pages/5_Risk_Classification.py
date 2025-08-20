@@ -55,7 +55,8 @@ def extract_text_from_pdf(file) -> str:
 def split_into_clauses(text: str) -> List[str]:
     """Simple clause splitter: headings, bullets, and long sentences."""
     parts = re.split(
-        r"(?:\n\s*[A-Z][A-Z0-9 /&\-]{3,}\s*\n|\n\s*\d+\.\s+|\n\s*[•\-]\s+)",
+        #r"(?:\n\s*[A-Z][A-Z0-9 /&\-]{3,}\s*\n|\n\s*\d+\.\s+|\n\s*[•\-]\s+)",
+        r"(?m)(?=^[ \t]*(?:(?:ARTICLE|SECTION)\s+[IVXLC\d]+(?:[:.\-–]\s+|[^\S\r\n]+)|[A-Z][A-Z0-9 ,/&\-–]{3,}[ \t]*$|\d+(?:\.\d+)*(?:\([a-zA-Z0-9]+\))?[ \t]+|\([a-zA-Z0-9]{1,3}\)[ \t]+|[•\-–][ \t]+))",
         text,
         flags=re.MULTILINE,
     )
