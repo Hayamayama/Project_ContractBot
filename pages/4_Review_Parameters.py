@@ -108,34 +108,31 @@ def run_comparison(template_retriever, uploaded_retriever, review_points, temper
     
     # --- 詳細報告 Prompt ---
     tpl = """
-**Role:** You are a seasoned Senior Legal Counsel at a top-tier professional services firm, acting to protect the interests of **"Our Company"**. Your review must be commercially-aware, risk-focused, and provide immediately actionable advice for a non-lawyer project team.
-
-**Objective:** Conduct a detailed preliminary review of a counterparty's contract clause ("Clause B") against Our Company's standard template ("Clause A") on the specific topic of "**{topic}**".
-
----
-**Context 1: Past High-Quality Analysis Examples (for style and depth reference)**
+You are a senior legal counsel at a top-tier professional services firm. Your task is to conduct a preliminary review of a counterparty's contract clause against our company's standard template. Your analysis must be sharp, insightful, and actionable for the project team.
+ 請嚴格確定回答不超過1024tokens,避免回答不完整。
+**Background Information - Past Excellent Analysis Examples (if any):**
 ```{approved_examples}```
 ---
-**Context 2: Clause A (Our Company's Standard Template - Normalized to Traditional Chinese)**
+**Clause A (Normalized to Traditional Chinese):**
 ```{clause_A}```
 ---
-**Context 3: Clause B (Counterparty's Draft - Normalized to Traditional Chinese)**
+**Clause B (Normalized to Traditional Chinese):**
 ```{clause_B}```
 ---
 
-**Task:** Generate a review report in Markdown. You MUST use the exact headings provided below and address all bullet points within each section.
+Based on the clauses provided above for the topic "**{topic}**", please draft a concise yet comprehensive review report in Markdown format. Your response MUST strictly follow the structure below and include all three requested sections. Do not omit any section.
 
 ### 1. 核心條款摘要 (Clause Summary)
--   **我方範本 (Clause A)**: Summarize the core purpose and mechanism of our standard clause in one sentence.
--   **對方草案 (Clause B)**: Summarize the core purpose and mechanism of their proposed clause in one sentence.
+- **文件一核心**: Briefly summarize the key points of Clause A.
+- **文件二核心**: Briefly summarize the key points of Clause B.
 
 ### 2. 關鍵差異與風險分析 (Key Differences & Risk Analysis)
--   **實質差異點 (Material Differences)**: Using bullet points, identify *all* significant differences in obligations, timelines, scope, or definitions between the two clauses. Be specific and quantitative (e.g., "30 days vs. 60 days," "includes affiliates vs. does not").
--   **對我方商業風險 (Business Risk to Our Company)**: For each difference identified, explain the potential legal, financial, or operational risk it poses *specifically to Our Company*. Frame it as "This exposes us to the risk of...".
+- **差異點**: Clearly identify the material differences between the two clauses.
+- **對我方風險**: Analyze the potential legal, commercial, or operational risks these differences pose to **our company**. Be specific.
 
 ### 3. 具體修訂與談判建議 (Actionable Revision & Negotiation Suggestions)
--   **建議修訂文字 (Suggested Redline)**: Provide a direct, copy-pasteable revision to Clause B to mitigate the identified risks and align it closer to our position in Clause A. If no change is needed, state "建議接受 (Acceptable as is)".
--   **談判底線與策略 (Negotiation Points & Bottom Line)**: Briefly state our primary negotiation goal (e.g., "Our main goal is to cap liability at...") and a fallback position if our primary suggestion is rejected.
+- **修訂建議**: Propose specific wording changes to the riskier clause to mitigate risks. If no change is needed, state so.
+- **談判策略**: Briefly suggest a negotiation position or points to emphasize.
 """
     analysis_chain = PromptTemplate.from_template(tpl) | llm | StrOutputParser()
     
@@ -254,7 +251,7 @@ st.divider()
 
 col1, col2 = st.columns(2)
 with col1:
-    st.header("步驟一：上傳參考文件")
+    st.subheader("步驟一：上傳參考文件")
     new_ref_file = st.file_uploader("上傳 PDF 作為新的比對基準", type="pdf", key="ref_uploader_faiss")
     if st.button("處理並載入參考文件"):
         if new_ref_file:
@@ -262,7 +259,7 @@ with col1:
         else:
             st.info("請先選擇一個參考文件。")
 with col2:
-    st.header("步驟二：選擇比對基準")
+    st.subheader("步驟二：選擇比對基準")
     processed_files = list(st.session_state.reference_retrievers.keys())
     selected_index = None
     if st.session_state.get("selected_namespace") in processed_files:
@@ -277,7 +274,7 @@ with col2:
         st.session_state.selected_namespace = selected
 st.divider()
 
-st.header("步驟三：上傳待審文件並執行分析")
+st.subheader("步驟三：上傳待審文件並執行分析")
 selected_namespace = st.session_state.get("selected_namespace")
 if not selected_namespace:
     st.info("請在上方步驟一上傳參考文件，並在步驟二選擇一份作為比對基準。")
