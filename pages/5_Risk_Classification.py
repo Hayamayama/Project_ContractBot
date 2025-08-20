@@ -10,6 +10,8 @@ from pydantic import BaseModel, Field, ValidationError
 from PyPDF2 import PdfReader
 from openai import OpenAI
 
+import Risk_Knowledge
+
 # ---------------- UI CONFIG (must be the first Streamlit call) ----------------
 st.set_page_config(page_title="Contract Risk Classifier", layout="wide")
 st.logo("logo.png")
@@ -24,6 +26,7 @@ class ClauseRisk(BaseModel):
     reason: str
     tags: List[str] = Field(default_factory=list)
 
+RISK_RUBRIC = Risk_Knowledge.get_risk_rubric_string()
 # ---------------- Prompts ----------------
 SYSTEM_PROMPT = """
 You are a contract risk analyst for a consulting firm.
@@ -33,9 +36,12 @@ Return a SINGLE JSON object with EXACT keys:
 - reason: <= 150 words (string)
 - tags: short keywords (array of strings)
 
+**Risk Classification Rubric:**
+---
+{RISK_RUBRIC}
+---
 Rules:
-- Use the rubric: HIGH (unlimited liability, broad indemnity on customer, immediate termination, auto-renew with tight opt-out, unrestricted data use, unilateral change, IP assignment without carve-outs, audit any time), 
-  MEDIUM (missing mutuality, vague "material" terms, governing law unfavorable, moderate caps, or anything not clearly HIGH).
+- Use the rubric
 - Do NOT wrap in any extra key (e.g., no {"ClauseRisk": {...}}).
 - Do NOT return a list.
 - Do NOT include extra keys.
