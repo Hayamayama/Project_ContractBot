@@ -316,7 +316,6 @@ elif sub == "其他工具 Tools":
             preview_df = preview_df.drop(columns=["pinned"], errors="ignore")
             st.dataframe(preview_df.head(100), use_container_width=True, hide_index=True)
 
-
 # ----- Results -----
 if st.session_state.get("comparison_results"):
     st.subheader("合約比對分析報告")
