@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 
 # LangChain / Vector DB
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
-from langchain.document_loaders import PyPDFLoader
+from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.prompts import PromptTemplate
 from langchain.schema.output_parser import StrOutputParser
