@@ -1,5 +1,6 @@
 import os
 import re
+import io
 import json
 import time
 import textwrap
@@ -11,8 +12,9 @@ from PyPDF2 import PdfReader
 from openai import OpenAI
 
 import Risk_Knowledge
+import fitz  
 
-# ---------------- UI CONFIG (must be the first Streamlit call) ----------------
+# ---------------- UI Configuration ----------------
 st.set_page_config(page_title="Contract Risk Classifier", layout="wide")
 st.logo("logo.png")
 
@@ -27,13 +29,14 @@ class ClauseRisk(BaseModel):
     tags: List[str] = Field(default_factory=list)
 
 RISK_RUBRIC = Risk_Knowledge.get_risk_rubric_string()
+
 # ---------------- Prompts ----------------
-SYSTEM_PROMPT = """
+SYSTEM_PROMPT = f"""
 You are a contract risk analyst for a consulting firm.
 Return a SINGLE JSON object with EXACT keys:
 - clause: the clause text (string)
 - risk: one of HIGH, MEDIUM (string, UPPERCASE)
-- reason: <= 150 words (string)
+- reason: <= 100 words (string)
 - tags: short keywords (array of strings)
 
 **Risk Classification Rubric:**
@@ -42,7 +45,7 @@ Return a SINGLE JSON object with EXACT keys:
 ---
 Rules:
 - Use the rubric
-- Do NOT wrap in any extra key (e.g., no {"ClauseRisk": {...}}).
+- Do NOT wrap in any extra key (e.g., no {{"ClauseRisk": {{...}}}}).
 - Do NOT return a list.
 - Do NOT include extra keys.
 """
@@ -53,9 +56,7 @@ def extract_text_from_pdf(file) -> str:
     return "\n".join((page.extract_text() or "") for page in reader.pages)
 
 def split_into_clauses(text: str) -> List[str]:
-    """Simple clause splitter: headings, bullets, and long sentences."""
     parts = re.split(
-        #r"(?:\n\s*[A-Z][A-Z0-9 /&\-]{3,}\s*\n|\n\s*\d+\.\s+|\n\s*[•\-]\s+)",
         r"(?m)(?=^[ \t]*(?:(?:ARTICLE|SECTION)\s+[IVXLC\d]+(?:[:.\-–]\s+|[^\S\r\n]+)|[A-Z][A-Z0-9 ,/&\-–]{3,}[ \t]*$|\d+(?:\.\d+)*(?:\([a-zA-Z0-9]+\))?[ \t]+|\([a-zA-Z0-9]{1,3}\)[ \t]+|[•\-–][ \t]+))",
         text,
         flags=re.MULTILINE,
@@ -137,17 +138,22 @@ def classify_clause(client: OpenAI, clause: str) -> ClauseRisk:
     normalized = normalize_model_json(content, original_clause=clause)
     return ClauseRisk.model_validate(normalized)
 
+# ---------------- Running Progress Bar ----------------
 def classify_batch(clauses: List[str]) -> List[ClauseRisk]:
     client = OpenAI()
     out: List[ClauseRisk] = []
-    for c in clauses:
+
+    total = max(len(clauses), 1)
+    progress = st.progress(0, text="Classifying…")
+
+    for i, c in enumerate(clauses, start=1):
         try:
             out.append(classify_clause(client, c))
         except ValidationError as ve:
             out.append(
                 ClauseRisk(
                     clause=c,
-                    risk="MEDIUM",  
+                    risk="MEDIUM",
                     reason=f"Validation fallback: {ve.errors()[0]['type']}",
                     tags=["fallback"],
                 )
@@ -161,8 +167,131 @@ def classify_batch(clauses: List[str]) -> List[ClauseRisk]:
                     tags=["error"],
                 )
             )
+        # update progress each iteration
+        progress.progress(min(i / total, 1.0), text=f"Classified {i}/{total}")
         time.sleep(0.05)
+
+    progress.empty()
     return out
+
+# ---------------- Highlighting Helpers ----------------
+def _normalize_spaces(s: str) -> str:
+    return re.sub(r"\s+", " ", s).strip()
+
+def _candidate_snippets(text: str, min_len: int = 40, max_len: int = 140) -> List[str]:
+    """
+    Produce several overlapping snippets from a clause so that page.search_for()
+    stands a better chance of finding matches even when line-breaks / hyphenation differ.
+    """
+    t = _normalize_spaces(text)
+    if len(t) <= max_len:
+        return [t] if len(t) >= min_len else [t]
+
+    # sentence-based first
+    sentences = re.split(r"(?<=[\.\?!;:])\s+", t)
+    picks = []
+    for s in sentences:
+        s = s.strip()
+        if len(s) >= min_len:
+            picks.append(s[:max_len])
+
+    # sliding window on words
+    words = t.split()
+    window = 18  # approx ~90-120 chars for legal text
+    step = 8
+    for i in range(0, max(1, len(words) - window + 1), step):
+        chunk = " ".join(words[i:i+window])
+        if len(chunk) >= min_len:
+            picks.append(chunk[:max_len])
+
+    # first / middle / last chunk
+    picks.extend([
+        t[:max_len],
+        t[max(0, len(t)//2 - max_len//2): max_len + len(t)//2],
+        t[-max_len:]
+    ])
+
+    # eliminating duplicates while preserving order
+    seen, uniq = set(), []
+    for s in picks:
+        s2 = s.strip()
+        if s2 and s2 not in seen:
+            uniq.append(s2)
+            seen.add(s2)
+    return uniq[:10]
+
+def _risk_color(risk: str):
+    if risk == "HIGH":
+        return (1, 0, 0)   
+    return (1, 0.55, 0)    
+
+def _inset(rect, margin: float) -> "fitz.Rect":
+    return fitz.Rect(rect.x0 + margin, rect.y0 + margin, rect.x1 - margin, rect.y1 - margin)
+
+def build_highlighted_pdf(src_pdf_bytes: bytes, items: List[ClauseRisk], include_resolved: bool = False, resolved_idx: set = None) -> bytes:
+    """
+    Create a copy of the original PDF with highlight annotations for each (unresolved) clause.
+    Adds a summary page at end for any clauses not found.
+    """
+    if resolved_idx is None:
+        resolved_idx = set()
+
+    doc = fitz.open(stream=src_pdf_bytes, filetype="pdf")
+    not_found = []  # keep tuples of (risk, reason, text)
+
+    for idx, item in enumerate(items):
+        if (not include_resolved) and (idx in resolved_idx):   # skip resolved unless include_resolved is True
+            continue
+
+        snippets = _candidate_snippets(item.clause)
+        found_any = False
+
+        for page in doc:
+            page_found_here = False
+            for snip in snippets:
+                rects = page.search_for(snip, flags=1)      # case-insensitive search compatible across versions
+                if rects:
+                    annot = page.add_highlight_annot(rects)  # create one combined highlight per snippet occurrence
+                    try:
+                        annot.set_colors(stroke=_risk_color(item.risk))  # color by risk 
+                    except Exception:
+                        pass
+                    try:
+                        annot.set_border(width=0.5)
+                    except Exception:
+                        pass
+                    info_text = f"{item.risk} RISK\n{item.reason}".strip() # add popup content with risk + reason
+                    try:
+                        annot.set_info({"content": info_text})
+                    except Exception:
+                        pass
+                    annot.update()
+                    found_any = True
+                    page_found_here = True
+            if page_found_here:
+                continue     # continue scanning next pages to catch multi-page occurrences
+
+        if not found_any:
+            not_found.append(item)
+
+    # Add a summary page listing any clauses we could not locate
+    if not_found:
+        summary = doc.new_page(-1)  # append to end
+        header = "Clauses Not Found For Highlighting"
+        text_blocks = [header, ""]
+        for miss in not_found:
+            text_blocks.append(f"- {miss.risk} · {', '.join(miss.tags) or 'untagged'}")
+            text_blocks.append(f"  Reason: {miss.reason}")
+            text_blocks.append("  " + textwrap.shorten(_normalize_spaces(miss.clause), width=220))  # Show a shortened clause to keep page readable
+            text_blocks.append("")  # spacer
+        inner_rect = _inset(summary.rect, 36)
+        summary.insert_textbox(inner_rect, "\n".join(text_blocks), fontsize=10, align=0)
+
+    # Save to bytes
+    out = io.BytesIO()
+    doc.save(out, deflate=True, garbage=4)
+    doc.close()
+    return out.getvalue()
 
 # ---------------- App Header ----------------
 st.header("合約風險評鑑 Contract Risk Classifier")
@@ -173,6 +302,9 @@ if "results" not in st.session_state:
     st.session_state.results = []          # list of ClauseRisk
 if "resolved" not in st.session_state:
     st.session_state.resolved = set()      # set of indices (ints)
+# keep the original uploaded bytes so we can re-open it for highlighting
+if "source_pdf_bytes" not in st.session_state:
+    st.session_state.source_pdf_bytes = None
 
 # ---------------- Controls ----------------
 left, right = st.columns([2, 1])
@@ -182,10 +314,19 @@ with left:
     process_clicked = st.button("處理上傳 Process Upload", type="primary", use_container_width=True, disabled=uploaded is None)
 
 with right:
-    cap = st.number_input("最大可分析子句數 Max Clauses to Analyze", min_value=5, max_value=80, value=30, step=5)
-    model_name = st.text_input("進階模型 Model", value=MODEL_NAME)
-    if model_name:
-        MODEL_NAME = model_name
+    cap = st.number_input("最大可分析子句數 Max Clauses to Analyze", min_value=5, max_value=50, value=20, step=5)
+    MODEL_OPTIONS = [
+        "gpt-5",
+        "gpt-5-pro",
+        "gpt-5-mini",
+        "gpt-4o",
+    ]
+
+    MODEL_NAME = st.selectbox(
+        "進階模型 Model",
+        options=MODEL_OPTIONS,
+        index=MODEL_OPTIONS.index(MODEL_NAME) if MODEL_NAME in MODEL_OPTIONS else 0
+    )
 
 # ---------------- Process PDF ----------------
 if process_clicked:
@@ -198,7 +339,9 @@ if process_clicked:
         st.stop()
 
     # Extract & split
-    text = extract_text_from_pdf(uploaded)
+    # Also store the raw bytes for later highlight export
+    st.session_state.source_pdf_bytes = uploaded.getvalue()
+    text = extract_text_from_pdf(io.BytesIO(st.session_state.source_pdf_bytes))
     clauses = split_into_clauses(text)[:cap]
     st.caption(f"Found {len(clauses)} clause-like chunks.")
 
@@ -235,11 +378,12 @@ if st.session_state.results:
     for r in active_results:
         counts[r.risk] += 1
 
-    st.subheader("Summary")
+    st.divider()
+
+    st.subheader("摘要 Summary")
     st.write(
         f"🔴 HIGH: **{counts['HIGH']}**  ·  🟠 MEDIUM: **{counts['MEDIUM']}**  ·  ✅ Resolved: **{len(resolved)}**"
     )
-    st.divider()
 
     show_resolved = st.checkbox("Show resolved items", value=False)
 
@@ -285,20 +429,31 @@ if st.session_state.results:
         for i in sorted(resolved):
             render_card(i, results[i], is_resolved=True)
 
-    # ------------- Exports -------------
-    st.markdown("—")
+    # ------- Export Highlighted PDF -------
+    st.divider()
 
-    # Default export: unresolved only (as TXT)
-    export_payload = [results[i].model_dump() for i in range(len(results)) if i not in resolved]
-    export_text = "\n\n".join(
-    f"Clause: {r['clause']}\nRisk: {r['risk']}\nReason: {r['reason']}\nTags: {', '.join(r['tags']) or 'untagged'}"
-    for r in export_payload
-    )
+    st.subheader("匯出重點標記 Export with Highlights (PDF)")
+    disabled_pdf = st.session_state.source_pdf_bytes is None
+    col_a, col_b = st.columns([1, 1])
+    with col_a:
+        include_resolved = st.toggle("Include resolved items", value=False, help="Include already-resolved clauses in the highlighted PDF.")
 
-    st.download_button(
-        "Save TXT (Unresolved Only)",
-        data=export_text.encode("utf-8"),
-        file_name="risk_flags_unresolved.txt",
-        mime="text/plain",
-        use_container_width=True,
-    )
+    if disabled_pdf:
+        st.warning("Upload and process a PDF first to enable PDF export.")
+    else:
+        try:
+            pdf_bytes = build_highlighted_pdf(
+                st.session_state.source_pdf_bytes,
+                items=results,
+                include_resolved=include_resolved,
+                resolved_idx=resolved
+            )
+            st.download_button(
+                "匯出含重點標註 Export PDF with Highlights",
+                data=pdf_bytes,
+                file_name="contract_highlighted.pdf",
+                mime="application/pdf",
+                use_container_width=True,
+            )
+        except Exception as e:
+            st.error(f"Failed to generate highlighted PDF: {e}")
