@@ -44,7 +44,15 @@ git commit -m "..."  提交變更
 git push             推送變更
 #####
 
-git checkout -b <your-branch-name>
-git push -u origin <your-branch-name>
 
 git log
+
+檢查	
+git config user.name	檢查目前設定的名稱
+git config user.email	檢查目前設定的信箱
+全域設定
+git config --global user.name "名字"	設定所有專案共用的名稱
+git config --global user.email "信箱"	設定所有專案共用的信箱
+專案設定	
+git config user.name "名字"	只設定當前專案的名稱
+git config user.email "信箱"	只設定當前專案的信箱
