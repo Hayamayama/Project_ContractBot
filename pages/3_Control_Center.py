@@ -143,33 +143,15 @@ def run_comparison(template_retriever, uploaded_retriever, review_points, temper
 
 # ---------- UI ----------
 st.header("控制中心 Control Center")
-
 pins = sum(1 for it in st.session_state.search_history if it.get("pinned"))
 
-top = option_menu(
-    None, ["設定 Settings", "搜尋 Search"],
-    icons=["gear-fill", "search"],
-    menu_icon="cast", default_index=1, orientation="horizontal",
-)
-
-# ----- Settings -----
-if top == "設定 Settings":
-    st.subheader('模型參數 Model Parameters')
-    st.session_state.temperature = st.slider("參數溫度 Temperature", 0.0, 2.0, st.session_state.temperature, 0.1, 
-                                             help='Lower = focused & predictable; higher = varied & creative.')
-    st.session_state.max_tokens = st.slider("最大字元數 Max Tokens", 0, 4096, st.session_state.max_tokens, 128,
-                                            help='Max Tokens limits the length of AI responses.')
-    
-sub = ""
-
 # ----- Search -----
-if top == "搜尋 Search":
-    st.subheader("搜尋控制台 Search Console")
-    sub = option_menu(
-        None, ["查詢歷史 Query History", f"釘選 Pinned ({pins})", "其他工具 Tools"],
-        icons=["clock-history", "pin-angle-fill", "wrench-adjustable-circle"],
-        menu_icon="cast", default_index=0, orientation="horizontal",
-    )
+
+sub = option_menu(
+    None, ["查詢歷史 Query History", f"釘選 Pinned ({pins})", "其他工具 Tools"],
+    icons=["clock-history", "pin-angle-fill", "wrench-adjustable-circle"],
+    menu_icon="cast", default_index=0, orientation="horizontal",
+)
 
     # --- helper used by "Queue History" and "Pinned" sections -------------------------------------------
 def _toggle_pin(_id: str):
@@ -315,6 +297,7 @@ elif sub == "其他工具 Tools":
             # Keep preview readable; hide internal flags if you like
             preview_df = preview_df.drop(columns=["pinned"], errors="ignore")
             st.dataframe(preview_df.head(100), use_container_width=True, hide_index=True)
+
 
 # ----- Results -----
 if st.session_state.get("comparison_results"):
