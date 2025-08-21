@@ -17,4 +17,4 @@ reportlab
 PyPDF2
 openai
 pydantic
-spacy
+pymupdf
