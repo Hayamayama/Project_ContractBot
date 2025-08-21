@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ContractBot - AI 合約審閱與知識進化平台</title>
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        /* 自定義字體 */
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        /* 漸層背景 */
+        .gradient-bg {
+            background-color: #0c0a18;
+            background-image:
+                radial-gradient(at 10% 20%, hsla(217, 70%, 25%, 0.3) 0px, transparent 50%),
+                radial-gradient(at 80% 90%, hsla(339, 60%, 25%, 0.25) 0px, transparent 50%);
+        }
+        /* 流程步驟線條 */
+        .step:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            left: 1.25rem;
+            top: 3rem;
+            height: calc(100% - 2rem);
+            width: 2px;
+            background-color: #374151; /* gray-700 */
+            z-index: -1;
+        }
+        /* FAQ 收合樣式 */
+        details > summary {
+            list-style: none;
+        }
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+        details[open] summary .arrow-down {
+            transform: rotate(180deg);
+        }
+    </style>
+</head>
+<body class="gradient-bg text-gray-200">
+
+    <!-- 主容器 -->
+    <div class="container mx-auto px-6 py-12 md:py-20 max-w-6xl">
+
+        <!-- 頁首/英雄區塊 -->
+        <header class="text-center mb-20 md:mb-32">
+            <span class="inline-block bg-indigo-500/10 text-indigo-400 text-sm font-medium px-4 py-1.5 rounded-full mb-4">
+                AI 合約動態比對工具
+            </span>
+            <h1 class="text-4xl md:text-6xl font-bold tracking-tight text-white leading-tight">
+                打造可持續進化的<br>合約智慧核心
+            </h1>
+            <p class="mt-6 text-lg md:text-xl text-gray-400 max-w-3xl mx-auto">
+                不僅是文件比對，更是建立一個能從法務實戰經驗中學習的智慧循環。讓您的每一次審閱，都成為強化未來 AI 分析能力的基石。
+            </p>
+            <div class="mt-8 flex justify-center gap-4">
+                <a href="https://project-contractbot.streamlit.app" target="_blank" class="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3 px-6 rounded-lg transition-transform transform hover:scale-105">
+                    前往應用程式
+                </a>
+                <a href="#how-it-works" class="bg-gray-700/50 hover:bg-gray-600/50 text-white font-semibold py-3 px-6 rounded-lg transition-transform transform hover:scale-105">
+                    了解運作原理
+                </a>
+            </div>
+        </header>
+
+        <!-- 核心功能 (詳細版) -->
+        <section id="features" class="mb-20 md:mb-32">
+            <h2 class="text-3xl md:text-4xl font-bold text-center text-white mb-16">不僅是工具，更是您的智慧法務夥伴</h2>
+            <div class="space-y-16">
+                <!-- Feature 1 -->
+                <div class="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
+                    <div>
+                        <span class="text-indigo-400 font-semibold">01</span>
+                        <h3 class="text-2xl font-bold text-white mt-2 mb-4">動態即時比對</h3>
+                        <p class="text-gray-400 mb-4">傳統範本比對曠日廢時且容易出錯。我們的動態比對功能，讓您能針對單次任務，臨時上傳「我方範本」與「待審文件」。系統利用 **FAISS** 在記憶體中快速建立向量索引，進行高效的即時語意比對與深度分析，無需依賴預先建立的永久知識庫，確保了分析的靈活性與即時性。</p>
+                        <ul class="space-y-2 text-gray-300">
+                            <li class="flex items-start"><svg class="w-5 h-5 mr-2 mt-1 text-emerald-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg><span>**Session-based 分析**: 每次比對都在獨立環境，確保資料隔離。</span></li>
+                            <li class="flex items-start"><svg class="w-5 h-5 mr-2 mt-1 text-emerald-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg><span>**超越關鍵字**: 進行語意層面的深度對齊，找出文字不同但意義相近的條款。</span></li>
+                        </ul>
+                    </div>
+                    <div class="bg-gray-800/40 p-6 rounded-2xl border border-gray-700/80">
+                        <img src="https://placehold.co/600x400/111827/7c3aed?text=Real-time+Comparison+UI" alt="動態即時比對示意圖" class="rounded-lg">
+                    </div>
+                </div>
+                <!-- Feature 2 -->
+                <div class="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
+                    <div class="md:order-2">
+                        <span class="text-indigo-400 font-semibold">02</span>
+                        <h3 class="text-2xl font-bold text-white mt-2 mb-4">AI 自我進化學習迴圈</h3>
+                        <p class="text-gray-400 mb-4">ContractBot 的核心價值在於其學習能力。我們設計了雙軌學習機制，讓 AI 能持續從您的專業知識中進化：</p>
+                        <ul class="space-y-2 text-gray-300">
+                            <li class="flex items-start"><svg class="w-5 h-5 mr-2 mt-1 text-emerald-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg><span>**GCO 實戰經驗導入**: 上傳法務專家「追蹤修訂」和「註解」的 Word 文件，系統自動解析並提取這些寶貴經驗，存入 **Pinecone** 作為永久專業知識。</span></li>
+                            <li class="flex items-start"><svg class="w-5 h-5 mr-2 mt-1 text-emerald-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg><span>**優質報告反饋學習**: 將高品質的分析報告一鍵歸檔至 **Amazon S3**，其核心內容會同步反饋給 AI 學習，使其分析能力與日俱增。</span></li>
+                        </ul>
+                    </div>
+                    <div class="md:order-1 bg-gray-800/40 p-6 rounded-2xl border border-gray-700/80">
+                        <img src="https://placehold.co/600x400/111827/34d399?text=AI+Learning+Loop" alt="AI 自我進化學習示意圖" class="rounded-lg">
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- 運作原理區塊 -->
+        <section id="how-it-works" class="mb-20 md:mb-32">
+            <div class="text-center">
+                <h2 class="text-3xl md:text-4xl font-bold text-white mb-4">創新的雙資料庫架構</h2>
+                <p class="text-lg text-gray-400 max-w-3xl mx-auto mb-16">
+                    我們採用先進的 RAG (檢索增強生成) 架構，並透過創新的雙向量資料庫策略，完美地區分了「即時性分析」與「長期性知識管理」兩種核心需求。
+                </p>
+            </div>
+            <div class="grid lg:grid-cols-3 gap-8 text-center">
+                <!-- Input -->
+                <div class="bg-gray-800/20 p-6 rounded-xl">
+                    <h3 class="font-semibold text-white mb-4">1. 知識輸入</h3>
+                    <div class="space-y-3 text-left">
+                        <div class="bg-gray-700/50 p-3 rounded-lg">📄 參考文件 (PDF)</div>
+                        <div class="bg-gray-700/50 p-3 rounded-lg">📄 待審文件 (PDF)</div>
+                        <div class="bg-gray-700/50 p-3 rounded-lg">🧠 GCO 經驗 (DOCX)</div>
+                    </div>
+                </div>
+                <!-- Processing Core -->
+                <div class="bg-gray-800/40 p-6 rounded-xl border-2 border-indigo-500">
+                    <h3 class="font-semibold text-white mb-4">2. 智慧處理核心</h3>
+                    <div class="space-y-3">
+                        <div class="bg-cyan-500/10 text-cyan-300 p-4 rounded-lg">
+                            <p class="font-bold">FAISS (即時分析)</p>
+                            <p class="text-sm">用於當次會話的高速比對</p>
+                        </div>
+                        <div class="bg-amber-500/10 text-amber-300 p-4 rounded-lg">
+                            <p class="font-bold">Pinecone (長期知識)</p>
+                            <p class="text-sm">儲存範本、經驗與學習成果</p>
+                        </div>
+                    </div>
+                </div>
+                <!-- Output & Learning -->
+                <div class="bg-gray-800/20 p-6 rounded-xl">
+                    <h3 class="font-semibold text-white mb-4">3. 輸出與學習</h3>
+                    <div class="space-y-3 text-left">
+                        <div class="bg-gray-700/50 p-3 rounded-lg">📊 分析報告</div>
+                        <div class="bg-gray-700/50 p-3 rounded-lg">🗂️ 歸檔至 S3</div>
+                        <div class="bg-gray-700/50 p-3 rounded-lg">💡 反饋至 Pinecone 學習</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 目標客群 -->
+        <section class="mb-20 md:mb-32 text-center">
+             <h2 class="text-3xl md:text-4xl font-bold text-white mb-12">為誰而設計？</h2>
+             <div class="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+                 <div class="bg-gray-800/40 p-8 rounded-xl border border-gray-700/80">
+                     <h3 class="text-xl font-semibold text-white mb-2">企業法務團隊</h3>
+                     <p class="text-gray-400">從繁瑣的合約比對中解放，專注於談判策略與高風險條款的深度分析。</p>
+                 </div>
+                 <div class="bg-gray-800/40 p-8 rounded-xl border border-gray-700/80">
+                     <h3 class="text-xl font-semibold text-white mb-2">法律事務所</h3>
+                     <p class="text-gray-400">提升案件處理效率，為客戶提供更快速、更精準的合約審閱服務，建立競爭優勢。</p>
+                 </div>
+                 <div class="bg-gray-800/40 p-8 rounded-xl border border-gray-700/80">
+                     <h3 class="text-xl font-semibold text-white mb-2">採購與業務部門</h3>
+                     <p class="text-gray-400">在第一線快速識別合約中的潛在風險，加速商業流程，同時確保合規性。</p>
+                 </div>
+             </div>
+        </section>
+
+        <!-- FAQ -->
+        <section id="faq" class="max-w-3xl mx-auto mb-20 md:mb-32">
+            <h2 class="text-3xl md:text-4xl font-bold text-center text-white mb-12">常見問題</h2>
+            <div class="space-y-4">
+                <details class="bg-gray-800/40 border border-gray-700/80 p-6 rounded-lg">
+                    <summary class="flex justify-between items-center cursor-pointer font-semibold text-white">
+                        我的合約資料安全嗎？
+                        <svg class="w-5 h-5 arrow-down transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </summary>
+                    <p class="mt-4 text-gray-400">絕對安全。用於「即時比對」的文件僅在當次會話的記憶體中處理，任務結束後即銷毀。需要永久保存的「長期知識」則儲存在您指定的 Pinecone 向量資料庫與 Amazon S3 雲端儲存中，皆為企業級安全標準。</p>
+                </details>
+                <details class="bg-gray-800/40 border border-gray-700/80 p-6 rounded-lg">
+                    <summary class="flex justify-between items-center cursor-pointer font-semibold text-white">
+                        支援哪些檔案格式？
+                        <svg class="w-5 h-5 arrow-down transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </summary>
+                    <p class="mt-4 text-gray-400">目前核心比對功能主要支援 **PDF** 格式，這是最通用的合約交換格式。在「GCO 經驗導入」功能中，我們特別支援 **DOCX** 格式，以精準提取 Word 文件中的追蹤修訂與註解內容。</p>
+                </details>
+                 <details class="bg-gray-800/40 border border-gray-700/80 p-6 rounded-lg">
+                    <summary class="flex justify-between items-center cursor-pointer font-semibold text-white">
+                        我需要自己設定或訓練 AI 模型嗎？
+                        <svg class="w-5 h-5 arrow-down transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </summary>
+                    <p class="mt-4 text-gray-400">完全不需要。系統已預先配置了業界頂尖的大型語言模型 (如 GPT-4o)，您開箱即可獲得強大的分析能力。ContractBot 的核心是「學習」而非「訓練」，它透過吸收您提供的優質範例來優化分析結果，而非從頭訓練一個模型。進階使用者也可以在控制中心微調溫度等參數以符合特定需求。</p>
+                </details>
+            </div>
+        </section>
+
+        <!-- Call to Action 區塊 -->
+        <section class="text-center bg-gray-800/40 py-16 rounded-2xl border border-gray-700/80">
+            <h2 class="text-3xl font-bold text-white mb-4">準備好體驗未來的合約審閱了嗎？</h2>
+            <p class="text-lg text-gray-400 max-w-2xl mx-auto mb-8">
+                立即開始使用 ContractBot，將您的法務團隊從繁瑣的比對工作中解放出來，專注於更高價值的策略分析。
+            </p>
+            <a href="https://project-contractbot.streamlit.app" target="_blank" class="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3 px-8 rounded-lg transition-transform transform hover:scale-105 text-lg">
+                立即開始
+            </a>
+        </section>
+
+    </div>
+
+    <!-- 頁尾 -->
+    <footer class="text-center py-8 mt-16 border-t border-gray-800/50">
+        <p class="text-gray-500 text-sm">
+            © 2025 ContractBot. All Rights Reserved.
+        </p>
+    </footer>
+
+</body>
+</html>
