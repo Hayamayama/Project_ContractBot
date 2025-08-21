@@ -10,6 +10,9 @@ from pydantic import BaseModel, Field, ValidationError
 from PyPDF2 import PdfReader
 from openai import OpenAI
 
+# --- [新增] 導入 spaCy ---
+import spacy
+
 import Risk_Knowledge
 
 # ---------------- UI CONFIG (must be the first Streamlit call) ----------------
@@ -52,34 +55,61 @@ def extract_text_from_pdf(file) -> str:
     reader = PdfReader(file)
     return "\n".join((page.extract_text() or "") for page in reader.pages)
 
-def split_into_clauses(text: str) -> List[str]:
-    """Simple clause splitter: headings, bullets, and long sentences."""
-    parts = re.split(
-        r"(?:\n\s*[A-Z][A-Z0-9 /&\-]{3,}\s*\n|\n\s*\d+\.\s+|\n\s*[•\-]\s+)",
-        text,
-        flags=re.MULTILINE,
-    )
+# --- [新增] 使用 spaCy 載入模型 (快取以提高效能) ---
+@st.cache_resource
+def load_spacy_model():
+    """載入 spaCy 模型並處理錯誤。"""
+    try:
+        return spacy.load("en_core_web_sm")
+    except OSError:
+        st.error("找不到 spaCy 模型 'en_core_web_sm'。請在終端機執行: python -m spacy download en_core_web_sm")
+        return None
+
+# --- [重大修改] 使用 spaCy 進行更精準的句子/條款切割 ---
+def split_into_clauses_spacy(text: str) -> List[str]:
+    """
+    使用 spaCy 進行語意感知的句子分割，並將相關句子組合成有意義的條款。
+    """
+    nlp = load_spacy_model()
+    if nlp is None:
+        return []
+
+    # 預處理：將多個換行符合併為一個，並移除多餘的空白
+    processed_text = re.sub(r'\n\s*\n', '\n', text)
+    processed_text = re.sub(r' +', ' ', processed_text)
+
+    doc = nlp(processed_text)
     clauses = []
-    for p in parts:
-        p = " ".join(p.split())
-        if 80 < len(p) < 1800:
-            clauses.append(p)
+    current_chunk = ""
+
+    for sent in doc.sents:
+        sentence_text = sent.text.strip()
+        if not sentence_text:
+            continue
+
+        # 核心邏輯：如果當前 chunk 加上新句子後不會太長，就合併
+        # 如果新句子看起來像一個列表項或新段落的開頭，就強制切分
+        is_list_item = re.match(r'^\(?[a-z0-9A-Z]\)|^\d+\.\s*|^[•\-*]\s+', sentence_text)
+
+        if current_chunk and (len(current_chunk) + len(sentence_text) > 1800 or is_list_item):
+            # 長度超過上限或遇到新的列表項，儲存前一個 chunk
+            if len(current_chunk) > 80: # 確保 chunk 有足夠的內容
+                 clauses.append(current_chunk)
+            current_chunk = sentence_text
+        else:
+            # 合併句子
+            current_chunk += (" " + sentence_text)
+
+    # 加入最後一個 chunk
+    if current_chunk and len(current_chunk) > 80:
+        clauses.append(current_chunk.strip())
+
+    # 如果 spaCy 切割後沒有結果 (可能文本太短)，使用原始的正則表達式作為備援
     if not clauses:
-        sentences = re.split(r"(?<=[.!?])\s+", text)
-        buf, cur = [], 0
-        for s in sentences:
-            if cur + len(s) < 800:
-                buf.append(s); cur += len(s)
-            else:
-                chunk = " ".join(buf).strip()
-                if len(chunk) > 80:
-                    clauses.append(chunk)
-                buf, cur = [s], len(s)
-        if buf:
-            chunk = " ".join(buf).strip()
-            if len(chunk) > 80:
-                clauses.append(chunk)
-    return clauses[:30]
+        parts = re.split(r'\n\s*\n', text) # 簡易的段落切割
+        clauses = [p.strip() for p in parts if 80 < len(p.strip()) < 1800]
+
+    return clauses[:100] # 維持最多100條的限制
 
 def normalize_model_json(raw: str, original_clause: str) -> dict:
     try:
@@ -146,7 +176,7 @@ def classify_batch(clauses: List[str]) -> List[ClauseRisk]:
             out.append(
                 ClauseRisk(
                     clause=c,
-                    risk="MEDIUM",  
+                    risk="MEDIUM",
                     reason=f"Validation fallback: {ve.errors()[0]['type']}",
                     tags=["fallback"],
                 )
@@ -181,7 +211,7 @@ with left:
     process_clicked = st.button("處理上傳 Process Upload", type="primary", use_container_width=True, disabled=uploaded is None)
 
 with right:
-    cap = st.number_input("最大可分析子句數 Max Clauses to Analyze", min_value=5, max_value=80, value=30, step=5)
+    cap = st.number_input("最大可分析子句數 Max Clauses to Analyze", min_value=5, max_value=100, value=30, step=5)
     model_name = st.text_input("進階模型 Model", value=MODEL_NAME)
     if model_name:
         MODEL_NAME = model_name
@@ -198,7 +228,8 @@ if process_clicked:
 
     # Extract & split
     text = extract_text_from_pdf(uploaded)
-    clauses = split_into_clauses(text)[:cap]
+    # --- [修改] 呼叫新的切割函式 ---
+    clauses = split_into_clauses_spacy(text)[:cap]
     st.caption(f"Found {len(clauses)} clause-like chunks.")
 
     with st.spinner("Classifying clauses…"):
@@ -236,7 +267,7 @@ if st.session_state.results:
 
     st.subheader("Summary")
     st.write(
-        f"🔴 HIGH: **{counts['HIGH']}**  ·  🟠 MEDIUM: **{counts['MEDIUM']}**  ·  ✅ Resolved: **{len(resolved)}**"
+        f"🔴 HIGH: **{counts['HIGH']}** ·  🟠 MEDIUM: **{counts['MEDIUM']}** ·  ✅ Resolved: **{len(resolved)}**"
     )
     st.divider()
 
@@ -249,9 +280,9 @@ if st.session_state.results:
             left_col, right_col = st.columns([6, 1])
             with left_col:
                 if is_resolved:
-                    st.markdown(f"**✅ RESOLVED**  ·  _{', '.join(item.tags) or 'untagged'}_")
+                    st.markdown(f"**✅ RESOLVED** ·  _{', '.join(item.tags) or 'untagged'}_")
                 else:
-                    st.markdown(f"**{badge_map[item.risk]}**  ·  _{', '.join(item.tags) or 'untagged'}_")
+                    st.markdown(f"**{badge_map[item.risk]}** ·  _{', '.join(item.tags) or 'untagged'}_")
                 st.write(textwrap.shorten(item.clause, 550))
                 st.caption(item.reason)
             with right_col:

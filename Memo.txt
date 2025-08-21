@@ -48,3 +48,7 @@ git checkout -b <your-branch-name>
 git push -u origin <your-branch-name>
 
 git log
+
+export GIT_COMMITTER_NAME="Hayama Hiroshi"
+export GIT_COMMITTER_EMAIL="krisyeh888@gmail.com"
+git commit --author="Hayama Hiroshi <krisyeh888@gmail.com>"
