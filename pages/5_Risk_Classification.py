@@ -10,10 +10,12 @@ import streamlit as st
 from pydantic import BaseModel, Field, ValidationError
 from PyPDF2 import PdfReader
 from openai import OpenAI
+from dotenv import load_dotenv
 
 import Risk_Knowledge
 import fitz  
 
+load_dotenv()
 # ---------------- UI Configuration ----------------
 st.set_page_config(page_title="Contract Risk Classifier", layout="wide")
 st.logo("logo.png")
@@ -31,23 +33,28 @@ class ClauseRisk(BaseModel):
 RISK_RUBRIC = Risk_Knowledge.get_risk_rubric_string()
 
 # ---------------- Prompts ----------------
-SYSTEM_PROMPT = f"""
-You are a contract risk analyst for a consulting firm.
-Return a SINGLE JSON object with EXACT keys:
-- clause: the clause text (string)
-- risk: one of HIGH, MEDIUM (string, UPPERCASE)
-- reason: <= 100 words (string)
-- tags: short keywords (array of strings)
+SYSTEM_PROMPT = """
+You are a meticulous and experienced contract risk analyst for a top-tier consulting firm. Your task is to analyze a given contract clause and classify its risk level based on a provided rubric.
+
+**Follow these steps carefully:**
+1.  **Analyze the Clause**: Read the user-provided clause and identify its core legal and commercial implications. What obligations, rights, or restrictions does it impose?
+2.  **Consult the Rubric**: Compare the clause's characteristics against the `Risk Classification Rubric`. Find the most relevant risk type described in the rubric.
+3.  **Determine Risk Level**: Based on the comparison, classify the risk as either "HIGH" or "MEDIUM". Default to "MEDIUM" if you are uncertain but see potential issues.
+4.  **Formulate the Reason**: Write a concise, professional explanation (under 150 words) for your classification. Your reason must directly reference the logic from the rubric.
+5.  **Extract Keywords**: Identify 2-4 keywords from the clause and your reason that best summarize the topic (e.g., "Indemnification", "Data Usage", "Liability Cap").
+6.  **Construct JSON**: Assemble the final analysis into a SINGLE JSON object.
 
 **Risk Classification Rubric:**
 ---
 {RISK_RUBRIC}
 ---
-Rules:
-- Use the rubric
-- Do NOT wrap in any extra key (e.g., no {{"ClauseRisk": {{...}}}}).
-- Do NOT return a list.
-- Do NOT include extra keys.
+
+**Output Format Rules (Strictly Enforced):**
+- The output MUST be a single, valid JSON object.
+- The JSON object must have these EXACT keys: `clause`, `risk`, `reason`, `tags`.
+- `risk` must be either "HIGH" or "MEDIUM" in uppercase.
+- Do NOT wrap the JSON in any other keys (e.g., no `{"ClauseRisk": ...}`).
+- Do NOT return a list or any text outside of the JSON object.
 """
 
 # ---------------- Helpers ----------------
@@ -254,10 +261,6 @@ def build_highlighted_pdf(src_pdf_bytes: bytes, items: List[ClauseRisk], include
                     annot = page.add_highlight_annot(rects)  # create one combined highlight per snippet occurrence
                     try:
                         annot.set_colors(stroke=_risk_color(item.risk))  # color by risk 
-                    except Exception:
-                        pass
-                    try:
-                        annot.set_border(width=0.5)
                     except Exception:
                         pass
                     info_text = f"{item.risk} RISK\n{item.reason}".strip() # add popup content with risk + reason
