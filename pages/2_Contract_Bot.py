@@ -1,3 +1,7 @@
+# RAG_Chatbot.py — Streamlit chat interface for querying your documents
+# Works independently from your Home.py. Uses Pinecone namespaces + ad-hoc PDF uploads (FAISS).
+# Env vars needed: OPENAI_API_KEY, PINECONE_API_KEY, (optional) PINECONE_INDEX_NAME
+
 import os
 import tempfile
 from datetime import datetime
@@ -12,20 +16,26 @@ from langchain_community.vectorstores import FAISS
 from langchain_pinecone import PineconeVectorStore
 from pinecone import Pinecone
 
-from langchain.document_loaders import PyPDFLoader
+from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.retrievers import EnsembleRetriever
 from langchain.schema import HumanMessage, AIMessage, SystemMessage
 
 
-# ------------------ Page & basic configuration ------------------
+# -----------------------------
+# 1) Page & basic config
+# -----------------------------
 st.set_page_config(page_title="ContractBot – Chat", layout="wide")
+# --- 【修改】: 使用 st.logo() ---
 st.logo("logo.png")
 
 load_dotenv()
 INDEX_NAME = os.environ.get("PINECONE_INDEX_NAME", "contract-assistant")
 
-# ------------------ Helpers ------------------
+
+# -----------------------------
+# 2) Helpers
+# -----------------------------
 @st.cache_resource
 def _pc_client():
     return Pinecone(api_key=os.environ.get("PINECONE_API_KEY"))
@@ -61,7 +71,9 @@ def pinecone_retriever(namespace: str, k: int):
     ).as_retriever(search_kwargs={"k": k})
 
 
-# ------------------ Session-state ------------------
+# -----------------------------
+# 3) Session-state
+# -----------------------------
 st.session_state.setdefault("messages", [])
 st.session_state.setdefault("faiss_store", None)
 st.session_state.setdefault("namespaces", list_namespaces(INDEX_NAME))
@@ -70,22 +82,23 @@ st.session_state.setdefault("temperature", 0.3)
 st.session_state.setdefault("top_k", 4)
 st.session_state.setdefault("streaming", True)
 
-# ------------------ Sidebar — Controls (Logo, Settings, Sources) ------------------
+
+# -----------------------------
+# 4) Sidebar — Controls (Logo, Settings, Sources)
+# -----------------------------
 with st.sidebar:
-    # --- Chat Settings ---
+    # --- Chat Settings (現在是側邊欄的第一個區塊) ---
     st.header("聊天設定 Chat Settings")
     st.session_state["chat_model"] = st.selectbox("語言模型 Language Model", options=["gpt-4o", "gpt-4o-mini"], index=0,)
 
-    st.session_state["top_k"] = st.slider("Top-k per Retriever", 1,10,
-        st.session_state["top_k"],
-        help="Number of top results to keep from each retriever before merging. "
-            "Lower = faster & more focused; higher = broader & potentially more varied results."
-    )
+    with st.expander("Top-k per Retriever"):
+        st.caption("Number of top results to keep from each retriever before merging. Lower = faster & more focused; higher = broader & potentially more varied results.")
+        st.session_state["top_k"] = st.slider("Top-k per Retriever", 1, 10, st.session_state["top_k"])
 
     st.session_state["streaming"] = st.toggle("即時回應 Stream Responses", value=st.session_state["streaming"])
     st.divider()
 
-    # --- Knowledge Sources ---
+    # --- Knowledge Sources (現在是側邊欄的第二個區塊) ---
     st.subheader("知識來源 Knowledge Sources")
     st.caption("將 Pinecone 的永久知識與臨時上傳的檔案整合搜尋 Mix your permanent Pinecone knowledge with ad-hoc uploads.")
 
@@ -138,7 +151,10 @@ with st.sidebar:
         st.session_state["faiss_store"] = None
         st.success("Cleared temporary FAISS store.")
 
-# ------------------ Combined Retriever ------------------
+
+# -----------------------------
+# 5) Build a combined retriever
+# -----------------------------
 retrievers = []
 for ns in (selected_namespaces or []):
     try:
@@ -161,7 +177,10 @@ if retrievers:
         # Simple equal-weight ensemble
         combo_retriever = EnsembleRetriever(retrievers=retrievers, weights=[1.0] * len(retrievers))
 
-# ------------------ System Prompt & RAG Routine ------------------
+
+# -----------------------------
+# 6) System Prompt & RAG routine
+# -----------------------------
 SYSTEM_PROMPT = (
     "You are ContractBot, a meticulous legal assistant. Answer using ONLY the provided context "
     "when possible. Quote key passages and include bracketed citations like [1], [2]. If the "
@@ -234,7 +253,10 @@ def answer_with_rag(question: str) -> Dict:
         "documents": documents,
     }
 
-# ------------------ Chat UI ------------------
+
+# -----------------------------
+# 7) Chat UI
+# -----------------------------
 st.header("合約聊天機器人 ContractBot")
 st.caption("Ask questions across selected Pinecone namespaces and any PDFs you upload in this session.")
 
@@ -360,5 +382,5 @@ with col3:
         file_name=fname,
         mime=mime,
         use_container_width=True,
-        disabled=(data is None) 
+        disabled=(data is None)  # disable only if we couldn't build the chosen format
     )
