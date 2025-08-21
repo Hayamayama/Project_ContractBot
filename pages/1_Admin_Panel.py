@@ -1,7 +1,7 @@
 import streamlit as st
 import os
 import tempfile
-from langchain.document_loaders import PyPDFLoader, TextLoader
+from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 # 從我們的共用函式庫中導入函式
 from utils import (
