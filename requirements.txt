@@ -3,7 +3,7 @@ streamlit-option-menu
 python-dotenv
 langchain
 langchain-openai
-pinecone-client
+pinecone
 langchain-pinecone
 langchain-community
 lxml
@@ -18,7 +18,9 @@ PyPDF2
 openai
 pydantic
 pymupdf
+semantic-text-splitter
 spacy
+
 
 # python -m spacy download zh_core_web_sm
 # python -m spacy download en_core_web_sm
