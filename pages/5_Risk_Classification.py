@@ -8,7 +8,7 @@ from typing import List, Literal, Optional
 
 import streamlit as st
 from pydantic import BaseModel, Field, ValidationError
-from PyPDF2 import PdfReader
+#from PyPDF2 import PdfReader
 from openai import OpenAI
 from dotenv import load_dotenv
 import fitz
@@ -35,46 +35,70 @@ EXTRACTION_MODEL_NAME = "gpt-4o-mini"
 
 # ---------------- Pydantic Schema ----------------
 class ClauseRisk(BaseModel):
+    """資料結構，包含 risk, reason, 和 suggestion 欄位"""
     clause: str
     risk: Literal["HIGH", "MEDIUM", "NOTICEABLE"]
     risk_sentence: Optional[str] = Field(None)
     reason: str
+    suggestion: Optional[str] = Field(None, description="A complete, revised version of the clause text to mitigate risk.")
     tags: List[str] = Field(default_factory=list)
 
 RISK_RUBRIC = Risk_Knowledge.get_risk_rubric_string()
 
-# ---------------- Prompts ----------------
+# ---------------- Prompts (核心修改) ----------------
+# 用更明確的指令，確保 AI 提供完整的修訂條文
 SYSTEM_PROMPT_STAGE1 = f"""
-You are a meticulous contract risk analyst. Your task is to analyze a clause and classify its risk.
-**Analysis Steps:**
-1.  **Analyze**: Identify core legal and commercial implications.
-2.  **Consult Rubric**: Compare against the `Risk Classification Rubric`.
+You are a senior legal counsel specializing in contract review. Your sole task is to analyze a **single given contract clause**, classify its risk level, and provide a complete, rewritten version of the clause that is ready for use.
+
+**Analysis Steps (Follow Strictly):**
+1.  **Analyze ONLY the Provided Text**: Your entire analysis **MUST** be based **exclusively** on the text of the clause given to you. **It is strictly forbidden to invent, assume, or refer to other clause numbers or topics** (e.g., 'Article 5' or 'indemnification') unless they are explicitly written in the provided text. Your analysis must directly correspond to the content of the input clause.
+2.  **Consult Rubric**: Compare the clause against the `Risk Classification Rubric` provided below.
 3.  **Determine Risk Level**:
-    - If it matches a "High" or "Medium" risk description, classify it as **"HIGH"** or **"MEDIUM"**.
-    - If the clause does **NOT** match High/Medium risks but matches a "Noticeable Clause" description (e.g., standard governing law, confidentiality period), classify it as **"NOTICEABLE"**.
-4.  **Formulate Reason**: Write a concise explanation in Traditional Chinese (繁體中文) for your classification.
-5.  **Extract Keywords**: Identify 2-4 keywords.
-6.  **Construct JSON**: Assemble into a SINGLE JSON object.
+    - Classify as **"HIGH"** or **"MEDIUM"** if it matches a corresponding risk description in the rubric.
+    - Classify as **"NOTICEABLE"** only if it does NOT match High/Medium risks but pertains to standard matters (e.g., governing law, confidentiality period).
+4.  **Formulate Reason**: In Traditional Chinese (繁體中文), write a concise, clear explanation for your risk classification.
+5.  **Provide Full Revision (Crucial Task)**:
+    - Provide the revised clause in the **same language** as the original clause.
+    - For any "HIGH" or "MEDIUM" risk clause, you **MUST** provide a **complete, standalone, and rewritten version of the clause**. This rewritten clause should mitigate all identified risks and be ready to replace the original text. It is not just a comment, but the full revised text.
+    - For "NOTICEABLE" clauses or if the original text is already acceptable, respond with the exact phrase "無需修改".
+6.  **Extract Keywords**: Identify 2-4 relevant keywords from the clause.
+7.  **Construct JSON**: Assemble your entire analysis into a SINGLE, valid JSON object.
+
 **Risk Classification Rubric:**
 ---
 {RISK_RUBRIC}
 ---
+
 **Output Format Rules (Strictly Enforced):**
-- Output MUST be a single, valid JSON object.
-- Keys must be EXACTLY: `risk`, `reason`, `tags`.
-- `risk` must be "HIGH", "MEDIUM", or "NOTICEABLE".
-- Do NOT return the original `clause`.
+- Your output **MUST** be a single, valid JSON object.
+- The JSON keys must be **EXACTLY**: `risk`, `reason`, `suggestion`, `tags`.
+- `risk` must be one of "HIGH", "MEDIUM", or "NOTICEABLE".
+- `reason` must be in Traditional Chinese.
+- `suggestion` **MUST** contain the full, revised clause text in Traditional Chinese, or the exact phrase "無需修改".
+- Do **NOT** include the original `clause` in your JSON response.
 """
+
 
 SYSTEM_PROMPT_STAGE2 = """
 You are a legal text analysis assistant. Given a full clause and a reason for its risk, extract the **exact, single sentence (or at most two)** that is the primary source of the risk.
 Respond with ONLY the extracted sentence(s). No explanation, no preamble, no quotes.
 """
 
-# ---------------- Helpers ----------------
+# ---------------- Helpers (無需修改) ----------------
+# pages/5_Risk_Classification.py
+
 def extract_text_from_pdf(file_bytes_io: io.BytesIO) -> str:
-    reader = PdfReader(file_bytes_io)
-    return "\n".join((page.extract_text() or "") for page in reader.pages)
+    """
+    [核心修改] 使用 PyMuPDF (fitz) 進行文字提取。
+    這確保了提取文字與後續標註搜尋所用的引擎是同一個，
+    從而解決了因函式庫差異導致的中文匹配失敗問題。
+    """
+    doc = fitz.open(stream=file_bytes_io, filetype="pdf")
+    full_text = []
+    for page in doc:
+        full_text.append(page.get_text() or "")
+    doc.close()
+    return "\n".join(full_text)
 
 @st.cache_data(show_spinner=False)
 def get_language(text_snippet: str) -> str:
@@ -120,9 +144,12 @@ def classify_clause(client: OpenAI, clause: str) -> ClauseRisk:
             risk_data = json.loads(content_str)
     except json.JSONDecodeError:
         raise ValueError(f"Failed to parse JSON from model response: {content_str}")
+
     risk_data = sanitize_risk_data(risk_data)
     risk_data["clause"] = clause
     risk_data.setdefault("risk_sentence", None)
+    risk_data.setdefault("suggestion", "無法生成建議。")
+
     if risk_data.get("risk") in ["HIGH", "MEDIUM"]:
         user_prompt_stage2 = f"Full Clause:\n```\n{clause}\n```\n\nReason for Risk:\n{risk_data.get('reason', '')}"
         resp_stage2 = client.chat.completions.create(
@@ -145,9 +172,9 @@ def classify_batch(clauses: List[str]) -> List[ClauseRisk]:
         try:
             out.append(classify_clause(client, c))
         except (ValueError, ValidationError) as e:
-            out.append(ClauseRisk(clause=c, risk="NOTICEABLE", reason=f"模型分析或驗證時發生錯誤: {str(e)[:100]}", tags=["error", "parsing_failed"]))
+            out.append(ClauseRisk(clause=c, risk="NOTICEABLE", reason=f"模型分析或驗證時發生錯誤: {str(e)[:100]}", suggestion="N/A", tags=["error", "parsing_failed"]))
         except Exception as e:
-            out.append(ClauseRisk(clause=c, risk="NOTICEABLE", reason=f"發生未預期的系統錯誤: {str(e)[:100]}", tags=["error", "system_error"]))
+            out.append(ClauseRisk(clause=c, risk="NOTICEABLE", reason=f"發生未預期的系統錯誤: {str(e)[:100]}", suggestion="N/A", tags=["error", "system_error"]))
         time.sleep(0.05)
     progress.empty()
     return out
@@ -155,20 +182,50 @@ def classify_batch(clauses: List[str]) -> List[ClauseRisk]:
 def _normalize_spaces(s: str) -> str:
     return re.sub(r"\s+", " ", s).strip()
 
-def _candidate_snippets(text: str, min_len: int = 20, max_len: int = 120) -> List[str]:
+# pages/5_Risk_Classification.py
+
+def _candidate_snippets(text: str, min_len: int = 15, max_len: int = 100) -> List[str]:
+    """
+    [核心修改] 全新升級的文字片段生成函式，特別強化對中文的支援。
+    1.  **辨識中英文標點**：使用包含「。；！？」的全形標點來進行更自然的斷句。
+    2.  **滑動窗口切分**：如果一個長句內沒有標點，則採用重疊的「滑動窗口」方式切分，
+        確保整句話都會被完整覆蓋到，而不是只取頭尾。
+    3.  **優化長度參數**：調整了最小和最大長度，更適合中文的資訊密度。
+    """
     t = _normalize_spaces(text)
-    if not t: return []
-    if len(t) <= max_len: return [t]
-    sentences = re.split(r'(?<=[.?!;:])\s+', t)
-    valid_sentences = [s.strip() for s in sentences if len(s.strip()) >= min_len]
-    if valid_sentences:
-        return [s[:max_len] for s in valid_sentences]
-    return [t[:max_len], t[-max_len:]]
+    if not t:
+        return []
+    if len(t) <= max_len:
+        return [t]
+
+    # 優先嘗試使用中英文標點符號來切分句子
+    # (?<=[...]) 是正規表示式中的 "positive lookbehind"，確保標點符號本身不被切掉
+    sentences = re.split(r'(?<=[。？！；!?;\.])\s*', t)
+    valid_sentences = [s.strip() for s in sentences if s and s.strip() and len(s.strip()) >= min_len]
+
+    # 如果成功按標點切分出多個句子，就使用這個結果
+    if len(valid_sentences) > 1 and any(len(s) < max_len for s in valid_sentences):
+         return valid_sentences
+
+    # 如果無法靠標點切分 (例如一個沒有標點的超長條款)
+    # 則使用重疊的滑動窗口 (sliding window) 方式，確保覆蓋完整內容
+    chunks = []
+    # 設定重疊20個字元，讓標註更連貫
+    overlap = 20 
+    step = max_len - overlap
+
+    for i in range(0, len(t), step):
+        chunk = t[i:i + max_len]
+        if chunk and len(chunk.strip()) > min_len:
+            chunks.append(chunk.strip())
+
+    return chunks if chunks else [t]
 
 def _inset(rect, margin: float) -> "fitz.Rect":
     return fitz.Rect(rect.x0 + margin, rect.y0 + margin, rect.x1 - margin, rect.y1 - margin)
 
 def build_highlighted_pdf(src_pdf_bytes: bytes, items: List[ClauseRisk], include_resolved: bool = False, resolved_idx: set = None) -> bytes:
+    """PDF 產生邏輯，確保將完整的修訂條文放入註解"""
     if resolved_idx is None: resolved_idx = set()
     doc = fitz.open(stream=src_pdf_bytes, filetype="pdf")
     not_found = []
@@ -185,11 +242,18 @@ def build_highlighted_pdf(src_pdf_bytes: bytes, items: List[ClauseRisk], include
                 if rects:
                     annot = page.add_highlight_annot(rects)
                     annot.set_colors(stroke=(1, 0, 0) if item.risk == "HIGH" else (1, 0.55, 0))
-                    annot.set_info(content=f"[{item.risk}] {item.reason}")
+
+                    # 組合註解內容，確保修訂條文格式清晰
+                    info_content = f"【風險原因】\n{item.reason}"
+                    if item.suggestion and item.suggestion != "無需修改":
+                        info_content += f"\n\n【建議修訂版本】\n{item.suggestion}"
+
+                    annot.set_info(content=f"[{item.risk}] {info_content}")
                     annot.update()
                     found_any = True
         if not found_any:
             not_found.append(item)
+
     if not_found:
         summary_page = doc.new_page()
         header = "Clauses Not Found For Highlighting"
@@ -200,15 +264,16 @@ def build_highlighted_pdf(src_pdf_bytes: bytes, items: List[ClauseRisk], include
             text_blocks.append("  " + textwrap.shorten(_normalize_spaces(miss.clause), width=220))
             text_blocks.append("")
         inner_rect = _inset(summary_page.rect, 36)
-        summary_page.insert_textbox(inner_rect, "\n".join(text_blocks), fontsize=10, align=0)
+        summary_page.insert_textbox(inner_rect, "\n".join(text_blocks), fontsize=10, align=0,fontname="china-tc")
     out = io.BytesIO()
     doc.save(out, deflate=True, garbage=4)
     doc.close()
     return out.getvalue()
 
-# ---------------- App Header & Controls ----------------
+
+# ---------------- App UI (無需修改) ----------------
 st.header("合約風險評鑑 Contract Risk Classifier")
-st.markdown("上傳合約 PDF，AI 將自動標示**高/中**風險條款，**精準定位風險句子**，並附上分析說明。")
+st.markdown("上傳合約 PDF，AI 將自動標示**高/中**風險條款，**精準定位風險句子**，並附上分析說明與修訂建議。")
 if "results" not in st.session_state: st.session_state.results = []
 if "resolved" not in st.session_state: st.session_state.resolved = set()
 if "source_pdf_bytes" not in st.session_state: st.session_state.source_pdf_bytes = None
@@ -219,9 +284,8 @@ with left:
 with right:
     cap = st.number_input("最大可分析條款數", min_value=5, max_value=50, value=20, step=5)
     split_method = st.selectbox("文字切割方式", options=["semantic", "regex", "recursive"], index=0)
-    MODEL_NAME = st.selectbox("分析模型 (進階)", options=["gpt-4o", "gpt-4-turbo", "gpt-5", "gpt-5-pro"], index=0)
+    MODEL_NAME = st.selectbox("分析模型 (進階)", options=["gpt-4o", "gpt-4-turbo"], index=0)
 
-# ---------------- Process PDF ----------------
 if process_clicked:
     if not os.getenv("OPENAI_API_KEY"):
         st.error("OPENAI_API_KEY 未設定。")
@@ -229,7 +293,7 @@ if process_clicked:
     if uploaded is None:
         st.warning("請先上傳 PDF。")
         st.stop()
-    
+
     try:
         pdf_bytes = uploaded.getvalue()
         st.session_state.source_pdf_bytes = pdf_bytes
@@ -245,28 +309,24 @@ if process_clicked:
     if not clauses:
         st.warning("未能在文件中切割出有效的條款，請檢查文件內容或嘗試其他切割方式。")
         st.stop()
-    
+
     all_results = classify_batch(clauses)
-    
-    # ✅ [核心修改] 在此處過濾掉 NOTICEABLE 的項目
+
     high_medium_results = [r for r in all_results if r.risk in ["HIGH", "MEDIUM"]]
     noticeable_count = len(all_results) - len(high_medium_results)
-    
+
     st.session_state.results = high_medium_results
     st.session_state.resolved = set()
 
-    # 儲存一個訊息，以便在頁面刷新後顯示
     st.session_state.last_run_message = f"分析完成！已識別出 {len(high_medium_results)} 個高/中風險項目。"
     if noticeable_count > 0:
         st.session_state.last_run_message += f" (已自動過濾 {noticeable_count} 個低風險項目)"
 
     st.rerun()
 
-# ---------------- Render Results ----------------
-# 在頁面頂部顯示上次運行的結果訊息
 if "last_run_message" in st.session_state:
     st.success(st.session_state.last_run_message)
-    del st.session_state.last_run_message # 顯示一次後就刪除
+    del st.session_state.last_run_message
 
 if st.session_state.results:
     results: List[ClauseRisk] = st.session_state.results
@@ -275,35 +335,38 @@ if st.session_state.results:
     def undo_resolved(idx: int): st.session_state.resolved.discard(idx)
     active_indices = [i for i in range(len(results)) if i not in resolved]
     active_results = [results[i] for i in active_indices]
-    
-    # ✅ [核心修改] 簡化計數器，不再需要計算 NOTICEABLE
+
     counts = {"HIGH": sum(1 for r in active_results if r.risk == "HIGH"),
               "MEDIUM": sum(1 for r in active_results if r.risk == "MEDIUM")}
-              
+
     st.divider()
     st.subheader("風險摘要 Summary")
-    # ✅ [核心修改] 更新摘要顯示，移除 NOTICEABLE
     st.write(f"🔴 **高風險: {counts['HIGH']}** · 🟠 **中風險: {counts['MEDIUM']}** · ✅ **已解決: {len(resolved)}**")
-    
+
     show_resolved = st.checkbox("顯示已解決項目", value=False)
-    
-    # ✅ [核心修改] 簡化 badge_map
+
     badge_map = {"HIGH": "🔴 高風險 HIGH RISK", "MEDIUM": "🟠 中風險 MEDIUM RISK"}
 
     def render_card(idx: int, item: ClauseRisk, is_resolved: bool):
         with st.container(border=True):
             left_col, right_col = st.columns([8, 2])
             with left_col:
-                # 由於已過濾，此處 get 的預設值不再重要，但保留以防萬一
                 status = "✅ 已解決 RESOLVED" if is_resolved else badge_map.get(item.risk, "🟠 中風險 MEDIUM RISK")
                 st.markdown(f"**{status}** · *Tags: {', '.join(item.tags) or '無'}*")
                 if item.risk_sentence and not is_resolved:
                     st.markdown("##### 🔑 風險根源句 (Risk Root-Cause Sentence)")
                     st.markdown(f"> {item.risk_sentence}")
-                    st.markdown("---")
+
+                st.markdown("##### 💬 AI 分析與理由 (AI Analysis & Reason)")
+                st.info(f"{item.reason}")
+
+                if item.suggestion and item.suggestion != "無需修改" and not is_resolved:
+                    st.markdown("##### ✍️ 建議修訂版本 (Suggested Full Revision)")
+                    st.success(f"{item.suggestion}")
+
                 with st.expander("檢視完整條款上下文 (View Full Clause Context)"):
                     st.text_area("Clause Text", value=item.clause, height=150, disabled=True, key=f"clause_text_{idx}")
-                st.caption(f"**AI 分析與理由:** {item.reason}")
+
             with right_col:
                 if not is_resolved:
                     st.button("Resolved", key=f"resolve_btn_{idx}", help="將此項目標示為已解決", on_click=mark_resolved, args=(idx,), use_container_width=True)
@@ -316,7 +379,7 @@ if st.session_state.results:
         st.markdown("### Resolved Items")
         for i in sorted(list(resolved)):
             render_card(i, results[i], is_resolved=True)
-    
+
     st.divider()
     st.subheader("匯出重點標記 Export with Highlights (PDF)")
     if st.session_state.source_pdf_bytes:
