@@ -126,7 +126,5 @@ streamlit run Homepage.py
 6.  報告生成後，在頁面下方找到 **"分析歸檔與 AI 再學習"** 區塊。
 7.  若您認可報告品質，點擊 **"我認可這份報告的品質..."** 按鈕。此操作會將報告存入 S3，並同步將其知識存入 **Pinecone**，完成一次完整的學習循環。
 
-## Streamlit community cloud 網址
 
-https://project-contractbot.streamlit.app
 
