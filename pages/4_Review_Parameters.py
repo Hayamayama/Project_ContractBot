@@ -96,7 +96,6 @@ def run_comparison(template_retriever, uploaded_retriever, review_points, temper
 2.  **Headings:** Use Markdown level 3 headings (`###`) for the two main sections (e.g., `### 1. 核心差異與對我方 (EY) 的風險`).
 3.  **Bullet Points:** Use a single dash (`- `) for all bullet points. Do not use asterisks (`*`) or circles (`o`).
 4.  **Content:** Address all points with insightful, concise analysis based on the provided clauses.
-5.  **Token Limit:** Please ensure your response does not exceed {st.session_state.max_tokens} tokens to avoid incomplete answers.
 
 ### 1. 核心差異與對我方 (EY) 的風險 (Key Differences & Risks to EY)
 -   **核心差異點 (Material Differences)**: Directly compare Clause A and B. Instead of just listing facts, synthesize the differences.
