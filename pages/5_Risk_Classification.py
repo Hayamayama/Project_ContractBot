@@ -234,24 +234,40 @@ def build_highlighted_pdf(src_pdf_bytes: bytes, items: List[ClauseRisk], include
             continue
         text_to_search = item.risk_sentence if item.risk_sentence else item.clause
         snippets = _candidate_snippets(text_to_search)
-        found_any = False
+
+        # 【關鍵修改】新增一個旗標，用來追蹤這個風險項目是否已經被找到並標註了
+        item_found_and_annotated = False
+
         for page in doc:
+            # 對於每個頁面，我們檢查所有文字片段
             for snip in snippets:
                 if not isinstance(snip, str) or len(snip) < 5: continue
                 rects = page.search_for(snip, quads=True)
+
+                # 如果找到了任何一個片段
                 if rects:
+                    # 就執行標註和新增註解
                     annot = page.add_highlight_annot(rects)
                     annot.set_colors(stroke=(1, 0, 0) if item.risk == "HIGH" else (1, 0.55, 0))
 
-                    # 組合註解內容，確保修訂條文格式清晰
                     info_content = f"【風險原因】\n{item.reason}"
                     if item.suggestion and item.suggestion != "無需修改":
                         info_content += f"\n\n【建議修訂版本】\n{item.suggestion}"
 
                     annot.set_info(content=f"[{item.risk}] {info_content}")
                     annot.update()
-                    found_any = True
-        if not found_any:
+
+                    # 【關鍵修改】將旗標設為 True，表示這個風險項目已處理完畢
+                    item_found_and_annotated = True
+                    # 【關鍵修改】立刻跳出最內層的「片段(snippet)」迴圈
+                    break
+            
+            # 【關鍵修改】如果這個風險項目已經處理完畢，也跳出中層的「頁面(page)」迴圈
+            if item_found_and_annotated:
+                break
+
+        # 如果遍歷完所有頁面後，這個風險項目仍然沒有被找到
+        if not item_found_and_annotated:
             not_found.append(item)
 
     if not_found:
