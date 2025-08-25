@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 
 # LangChain / Vector DB
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
-from langchain_community.document_loaders import PyPDFLoader, TextLoader # <--- [新增] 為了讀取暫存檔
+from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.prompts import PromptTemplate
 from langchain.schema.output_parser import StrOutputParser
@@ -33,7 +33,7 @@ INDEX_NAME = "contract-assistant"
 if "temperature" not in st.session_state:
     st.session_state.temperature = 0.3 # 建議的預設值
 if "max_tokens" not in st.session_state:
-    st.session_state.max_tokens = 2048 # 建議的預設值
+    st.session_state.max_tokens = 3072 # 建議的預設值，因為詳細報告需要較多空間
 
 # -----------------------------
 # Helpers
@@ -66,57 +66,19 @@ def translate_to_chinese(text_to_translate: str, _llm):
         st.markdown(f"<span style='color:white'>翻譯時發生錯誤: {e}</span>", unsafe_allow_html=True)
         return text_to_translate
 
+# --- [MODIFIED] 核心比對函式已完全重構 ---
 def run_comparison(template_retriever, uploaded_retriever, review_points, temperature, max_tokens):
     """
-    執行合約比對，並回傳包含「摘要矩陣」與「詳細報告」的字典。
+    執行合約比對，採用「先分析、後摘要」的兩步驟高品質生成流程。
     """
     llm = ChatOpenAI(model_name='gpt-4o', temperature=temperature, max_tokens=max_tokens)
     
-    # --- 高品質摘要矩陣 Prompt ---
-    summary_tpl = """
-    你是一位頂尖律師事務所的資深法務專家，你的工作是為下方的法律條款製作一份清晰、完整且具體的「摘要分析矩陣」。
-
-    **任務指示:**
-     請嚴格確定回答不超過{st.session_state.max_tokens}tokens,避免回答不完整。
-    1.  **完整分析差異**:
-        * 以「繁體中文」進行比較。
-        * 使用「點列式」(bullet points, e.g., `- ...`) 清晰列出兩份條款之間所有具實質影響的差異點。
-        * 分析必須具體，包含期限、範圍、義務等關鍵事實的比較。
-
-    2.  **提出具體修訂建議**:
-        * 針對上述差異，對風險較高或對我方不利的條款，提出清晰、可執行的修訂建議。
-        * 建議應包含「為何要改」以及「建議改成什麼內容」。
-        * 同樣使用「點列式」呈現。
-
-    3.  **嚴格格式**:
-        * 你的回答「只能」是一行文字。
-        * 必須嚴格使用 '|||' 作為分隔符，分隔「差異分析」與「修改建議」。
-        * 在 '|||' 的兩邊，你可以自由使用 Markdown 的點列式語法 (`- `) 與換行 (`\n`)。
-
-    **格式範例:**
-    `- 對方保密期從「合約終止後」起算，我方為「生效日起算」。\n- 對方保密期長達5年，比我方的3年更長。 ||| - 建議將保密期起算點修改為「資訊揭露日起」，以確保公平。\n- 建議將期限縮短為3年，與我方標準一致，降低我方長期義務。`
-
-    ---
-    **待分析資料:**
-
-    **主題**: {topic}
-
-    **條款 A (我方範本)**:
-    ```{clause_A}```
-
-    **條款 B (對方文件)**:
-    ```{clause_B}```
-    ---
-
-    **請立即產生符合上述所有要求的摘要內容:**
-    """
-    summary_chain = PromptTemplate.from_template(summary_tpl) | llm | StrOutputParser()
-    
-    # --- 詳細報告 Prompt ---
+    # --- STEP 1: 優化後的高品質詳細報告 Prompt ---
+    # 這個 Prompt 是整個分析的核心，專注於產生具有商業洞察的深度分析。
     tpl = """
-**Role:** You are a seasoned Senior Legal Counsel at a top-tier professional services firm, acting to protect the interests of **"Our Company"**. Your review must be commercially-aware, risk-focused, and provide immediately actionable advice for a non-lawyer project team.
+**Role:** You are a seasoned Senior Legal Counsel at EY. Your primary duty is to protect EY's interests. Your review must be commercially-aware, risk-focused, and provide immediately actionable advice for our internal non-lawyer project teams.
 
-**Objective:** Conduct a detailed preliminary review of a counterparty's contract clause ("Clause B") against Our Company's standard template ("Clause A") on the specific topic of "**{topic}**".
+**Objective:** Conduct a detailed preliminary review of a counterparty's contract clause ("Clause B") against our standard template ("Clause A") on the specific topic of "**{topic}**". Assume "Our Company" is EY.
 
 ---
 **Context 1: Past High-Quality Analysis Examples (for style and depth reference)**
@@ -129,38 +91,49 @@ def run_comparison(template_retriever, uploaded_retriever, review_points, temper
 ```{clause_B}```
 ---
 
-**Task:** Generate a review report in Markdown. You MUST use the exact headings provided below and address all bullet points within each section.
+**Task & Formatting Rules:**
+1.  **Language:** The entire report MUST be written in the language of original clause.
+2.  **Headings:** Use Markdown level 3 headings (`###`) for the two main sections (e.g., `### 1. 核心差異與對我方 (EY) 的風險`).
+3.  **Bullet Points:** Use a single dash (`- `) for all bullet points. Do not use asterisks (`*`) or circles (`o`).
+4.  **Content:** Address all points with insightful, concise analysis based on the provided clauses.
+5.  **Token Limit:** Please ensure your response does not exceed {st.session_state.max_tokens} tokens to avoid incomplete answers.
 
-### 1. 核心條款摘要 (Clause Summary)
--   **我方範本 (Clause A)**: Summarize the core purpose and mechanism of our standard clause in one sentence.
--   **對方草案 (Clause B)**: Summarize the core purpose and mechanism of their proposed clause in one sentence.
+### 1. 核心差異與對我方 (EY) 的風險 (Key Differences & Risks to EY)
+-   **核心差異點 (Material Differences)**: Directly compare Clause A and B. Instead of just listing facts, synthesize the differences.
+    * *Good Example:* `對方草案將保密義務延長至合約終止後5年，而我方範本僅為2年，大幅增加了我方長期的法律遵循成本與風險。`
+    * *Bad Example:* `條款A是2年，條款B是5年。`
+-   **對 EY 的潛在風險 (Potential Risks to EY)**: For each key difference, explicitly state the commercial, legal, or operational risk. Frame it as "這將使我方面臨...的風險" (This exposes us to the risk of...). Be specific to EY's business model (e.g., regulatory duties, data handling, global firm structure).
 
-### 2. 關鍵差異與風險分析 (Key Differences & Risk Analysis)
--   **實質差異點 (Material Differences)**: Using bullet points, identify *all* significant differences in obligations, timelines, scope, or definitions between the two clauses. Be specific and quantitative (e.g., "30 days vs. 60 days," "includes affiliates vs. does not").
--   **對我方商業風險 (Business Risk to Our Company)**: For each difference identified, explain the potential legal, financial, or operational risk it poses *specifically to Our Company*. Frame it as "This exposes us to the risk of...".
-
-### 3. 具體修訂與談判建議 (Actionable Revision & Negotiation Suggestions)
--   **建議修訂文字 (Suggested Redline)**: Provide a direct, copy-pasteable revision to Clause B to mitigate the identified risks and align it closer to our position in Clause A. If no change is needed, state "建議接受 (Acceptable as is)".
--   **談判底線與策略 (Negotiation Points & Bottom Line)**: Briefly state our primary negotiation goal (e.g., "Our main goal is to cap liability at...") and a fallback position if our primary suggestion is rejected.
+### 2. 修訂與談判策略建議 (Revision & Negotiation Strategy)
+-   **首選修訂建議 (Primary Redline Suggestion)**: Provide a direct, copy-pasteable revision to Clause B to mitigate the risks. If no change is truly needed, state "建議接受 (Acceptable as is)".
+-   **談判策略與底線 (Negotiation Strategy & Bottom Line)**:
+    * **談判目標 (Goal):** Clearly state our main goal (e.g., "主要目標是將保密期限縮短至不超過3年").
+    * **理由闡述 (Rationale):** Provide a brief, commercially-sound reason we can use in negotiations (e.g., "向對方說明，2-3年是行業標準，過長的期限不符合比例原則且增加雙方管理成本").
+    * **後備方案 (Fallback Position):** Offer a potential compromise if our primary suggestion is rejected (e.g., "若對方堅持5年，我方可接受，但要求增加『不包含我方為遵循法規或專業準則而必須保留的資料』之豁免條款").
 """
     analysis_chain = PromptTemplate.from_template(tpl) | llm | StrOutputParser()
     
     detailed_results = {}
-    summary_points = []
-    progress = st.progress(0, text="AI 法務專家正在審閱合約...")
+    progress = st.progress(0, text="AI 法務專家正在深度審閱合約...")
 
     mq_template_retriever = MultiQueryRetriever.from_llm(retriever=template_retriever, llm=llm)
     mq_uploaded_retriever = MultiQueryRetriever.from_llm(retriever=uploaded_retriever, llm=llm)
     
+    # --- 執行詳細分析的迴圈 ---
     for i, topic in enumerate(review_points):
         display_topic = topic.split(' (')[0].replace('&nbsp;', ' ').strip()
         search_query = topic.replace('&nbsp;', ' ')
-        progress.progress((i + 1) / len(review_points), text=f"正在分析: {display_topic}")
+        progress.progress((i + 0.5) / len(review_points), text=f"正在深度分析: {display_topic}")
+
+        # --- [優化建議] 啟動 Few-Shot Learning ---
+        # 這裡可以加入邏輯，從 Pinecone 的 LEARNING_NAMESPACE 中檢索與 topic 相關的優良範例
+        # a_text = search_for_approved_examples(topic) 
+        # 目前暫時維持原樣
+        a_text = "無相關範例"
 
         t_docs = mq_template_retriever.get_relevant_documents(search_query)
         u_docs = mq_uploaded_retriever.get_relevant_documents(search_query)
         
-        a_text = "無相關範例"
         t_text_original = "\n---\n".join([d.page_content for d in t_docs])
         u_text_original = "\n---\n".join([d.page_content for d in u_docs])
         
@@ -174,26 +147,6 @@ def run_comparison(template_retriever, uploaded_retriever, review_points, temper
         if not t_text_final.strip(): t_text_final = "文件中未找到相關條款"
         if not u_text_final.strip(): u_text_final = "文件中未找到相關條款"
             
-        summary_raw = summary_chain.invoke({
-            "topic": display_topic,
-            "clause_A": t_text_final,
-            "clause_B": u_text_final
-        })
-        try:
-            parts = summary_raw.strip().split('|||')
-            if len(parts) == 2:
-                difference, suggestion = [p.strip() for p in parts]
-            else:
-                difference, suggestion = "無法生成摘要", "格式錯誤"
-        except Exception:
-            difference, suggestion = "摘要生成失敗", "處理時發生錯誤"
-
-        summary_points.append({
-            'topic': display_topic,
-            'difference': difference,
-            'suggestion': suggestion
-        })
-
         report = analysis_chain.invoke({
             "topic": display_topic,
             "approved_examples": a_text,
@@ -202,6 +155,59 @@ def run_comparison(template_retriever, uploaded_retriever, review_points, temper
         })
         detailed_results[topic] = report
         
+    # --- STEP 2: [NEW] 在所有詳細報告生成後，進行高品質摘要 ---
+    progress.progress(1.0, text="正在提煉風險摘要總覽...")
+
+    full_detailed_report_context = "\n\n---\n\n".join(
+        f"### 審查項目：{topic.split(' (')[0]}\n\n{report}" 
+        for topic, report in detailed_results.items()
+    )
+
+    # 新的、專門用於從高品質報告中生成摘要的 Prompt
+    final_summary_tpl = """
+    你是一位頂尖的法務協理，你的任務是閱讀下方的「逐項審閱報告全文」，並為高階主管製作一份極度精簡的「風險摘要總覽」。
+
+    **任務指示:**
+    1.  **專注於核心**: 從每一項報告中，提煉出最重要的「核心差異與風險」以及最關鍵的「首選修訂建議」。
+    2.  **結果導向**: 摘要應清晰、直接，讓讀者能立刻掌握問題和解決方案。
+    3.  **嚴格格式**: 你的回答「只能」是一行文字。使用 '|||' 分隔「主題」、「主要差異與風險」與「核心修改建議」。使用 ';;;' 分隔不同的審查項目。在每個欄位內部，你可以使用 Markdown 的點列式語法 (`- `) 與換行 (`\\n`)。
+
+    **格式範例:**
+    `合約的保密期限|||- 對方草案的保密期長達5年，大幅增加我方長期遵循風險。\\n- 起算點為合約終止後，對我方不利。|||- 建議將期限縮短為 EY 標準的2年。\\n- 建議修改起算點為「資訊揭露日」。;;;機密資訊的定義範圍|||- 對方定義過於寬泛，可能將公開資訊也納入。|||- 建議加入我方範本中的五大標準例外情況。`
+
+    ---
+    **逐項審閱報告全文:**
+    ```{full_report}```
+    ---
+    **請立即產生符合上述所有要求的摘要內容:**
+    """
+    final_summary_prompt = PromptTemplate.from_template(final_summary_tpl)
+    # 使用一個溫度較低的獨立 LLM 來確保摘要的穩定性
+    summary_llm = ChatOpenAI(model_name='gpt-4o', temperature=0.1, max_tokens=2048)
+    summary_chain = final_summary_prompt | summary_llm | StrOutputParser()
+    
+    summary_raw = summary_chain.invoke({"full_report": full_detailed_report_context})
+    
+    # 解析新格式的摘要
+    summary_points = []
+    try:
+        items = summary_raw.strip().split(';;;')
+        for item in items:
+            if not item.strip(): continue
+            parts = item.strip().split('|||')
+            if len(parts) == 3:
+                topic, difference, suggestion = [p.strip().replace('\\n', '\n') for p in parts]
+                summary_points.append({
+                    'topic': topic,
+                    'difference': difference,
+                    'suggestion': suggestion
+                })
+            else: # 如果格式不符，做個簡單的降級處理
+                 summary_points.append({'topic': item, 'difference': '格式解析失敗', 'suggestion': '請查看詳細報告'})
+    except Exception as e:
+        st.error(f"生成摘要時發生錯誤: {e}")
+        summary_points.append({'topic': '摘要生成失敗', 'difference': '無法解析 AI 回應', 'suggestion': str(e)})
+
     progress.empty()
     return {"summary": summary_points, "details": detailed_results}
 
@@ -233,7 +239,7 @@ def process_and_store_reference_file(uploaded_file):
             st.session_state.reference_retrievers[filename] = retriever
             st.success(f"參考文件 '{filename}' 已成功載入！")
 
-# --- UI 部分 (前半部維持不變) ---
+# --- UI 部分 (維持不變) ---
 
 if "reference_retrievers" not in st.session_state:
     st.session_state.reference_retrievers = {}
@@ -283,19 +289,17 @@ with col2:
         st.session_state.selected_namespace = selected
 st.divider()
 
-# --- 模型參數設定改為獨立的步驟三 ---
 st.header("步驟三：設定 AI 分析參數")
 st.session_state.temperature = st.slider(
     "參數溫度 Temperature", 0.0, 1.0, st.session_state.temperature, 0.05,
-    help='數值較低，結果會更具體和一致；數值較高，結果會更有創意和多樣性。'
+    help='數值較低，結果會更具體和一致；數值較高，結果會更有創意和多樣性。建議使用 0.1-0.4 之間的值以獲得穩定且具洞察的分析。'
 )
 st.session_state.max_tokens = st.slider(
-    "最大字元數 Max Tokens", 256, 4096, st.session_state.max_tokens, 128,
-    help='限制單次 AI 回應的長度。較長的報告可能需要較高的數值。'
+    "最大字元數 Max Tokens", 512, 4096, st.session_state.max_tokens, 128,
+    help='限制單次 AI 回應的長度。由於詳細報告內容較多，建議設定在 3000 以上以避免報告被截斷。'
 )
 st.divider()
 
-# --- 原步驟三改為步驟四 ---
 st.header("步驟四：上傳待審文件並執行分析")
 selected_namespace = st.session_state.get("selected_namespace")
 if not selected_namespace:
@@ -331,73 +335,64 @@ if start_button:
             st.session_state.comparison_results = run_comparison(template_retriever, uploaded_retriever, final_review_points, temp, max_tok)
             st.rerun()
 
-# --- 整合第五頁的報告顯示與儲存功能 ---
+# --- 報告顯示與儲存功能 (維持不變) ---
 if st.session_state.get("comparison_results"):
     st.balloons()
     st.header("✅ AI 深度審閱報告已完成")
     st.info("您可以檢視下方的摘要與報告，若您認為這份報告品質優良，可將其歸檔用於 AI 再學習。")
     st.divider()
 
-    # --- 報告預覽 ---
     st.subheader("風險摘要總覽")
     
-    summary_data = st.session_state.comparison_results['summary']
-    details_data = st.session_state.comparison_results['details']
+    summary_data = st.session_state.comparison_results.get('summary', [])
+    details_data = st.session_state.comparison_results.get('details', {})
 
-    # 建立一個完整的 Markdown 字串用於後續儲存
     full_report_md = "# AI 合約審閱報告\n\n"
     
-    # 摘要表格
-    summary_table_md = f"| **項目** | **主要差異** | **核心修改建議** |\n"
+    summary_table_md = "| **項目** | **主要差異與風險** | **核心修改建議** |\n"
     summary_table_md += "|:---|:---|:---|\n"
     for item in summary_data:
         # 為了顯示和儲存，我們需要處理換行
-        difference_display = item['difference'].replace('\n', '<br>')
-        suggestion_display = item['suggestion'].replace('\n', '<br>')
-        summary_table_md += f"| {item['topic']} | {difference_display} | {suggestion_display} |\n"
+        topic_display = item.get('topic', 'N/A')
+        difference_display = item.get('difference', '').replace('\n', '<br>')
+        suggestion_display = item.get('suggestion', '').replace('\n', '<br>')
+        summary_table_md += f"| {topic_display} | {difference_display} | {suggestion_display} |\n"
     
     st.markdown(summary_table_md, unsafe_allow_html=True)
     full_report_md += "## 風險摘要總覽\n\n" + summary_table_md.replace('<br>', '\n') + "\n\n"
     st.divider()
     
-    # 詳細報告
     st.subheader("逐項審閱報告")
     full_report_md += "## 逐項審閱報告\n\n"
     for topic, report_md in details_data.items():
-        with st.expander(f"**審查項目：{topic.split(' (')[0]}**", expanded=True):
+        display_topic = topic.split(' (')[0].replace('&nbsp;', ' ').strip()
+        with st.expander(f"**審查項目：{display_topic}**", expanded=False):
             st.markdown(report_md, unsafe_allow_html=True)
-        full_report_md += f"### 審查項目：{topic.split(' (')[0]}\n\n{report_md}\n\n---\n\n"
+        full_report_md += f"### 審查項目：{display_topic}\n\n{report_md}\n\n---\n\n"
         
     st.divider()
     
-    # --- [新增] 歸檔與學習功能 ---
     st.subheader("🧠 分析歸檔與 AI 再學習")
     st.markdown("若您認可這份報告的分析品質，可以點擊下方按鈕，系統會將其歸檔至 Amazon S3，並將其內容作為一個完整的「優良範例」餵給 AI 進行學習。")
 
     if st.button("✅ 我認可這份報告的品質，歸檔至雲端並用於 AI 學習", type="primary", use_container_width=True):
-        # 準備要儲存的內容和檔名
         template_name = st.session_state.get("selected_namespace", "template").replace('.pdf', '')
         target_name = st.session_state.get("target_file_name", "target").replace('.pdf', '')
         timestamp = datetime.now().strftime('%Y%m%d')
         
         storage_filename = f"Approved_Report_{template_name}_vs_{target_name}_{timestamp}.md"
         
-        # 1. 呼叫 S3 的上傳函式
         upload_success = storage.upload_report_to_storage(full_report_md, filename=storage_filename)
 
-        # 2. 確保雲端上傳成功後才進行學習
         if upload_success:
             try:
                 with st.spinner(f"正在將報告知識轉化為 AI 的長期記憶..."):
-                    # 準備餵給 AI 的文字內容，加上標題以提供上下文
                     learning_content = f"【優良分析案例：合約審閱報告 - {template_name} vs {target_name}】\n\n{full_report_md}"
                     
-                    # 寫入暫存檔
                     with tempfile.NamedTemporaryFile(delete=False, mode="w+", encoding="utf-8", suffix=".txt") as tmp_file:
                         tmp_file.write(learning_content)
                         tmp_file_path = tmp_file.name
                     
-                    # 使用 TextLoader 載入並上傳至 Pinecone
                     loader = TextLoader(tmp_file_path)
                     documents = loader.load()
                     ingest_docs_to_pinecone(documents, INDEX_NAME, LEARNING_NAMESPACE)
@@ -405,10 +400,9 @@ if st.session_state.get("comparison_results"):
                     
                     st.success(f"AI 已成功學習此份報告的分析模式！")
                     
-                    # 處理完成後，清空 session_state 並顯示成功訊息
                     st.session_state.comparison_results = None
-                    st.header("處理完成！優質報告已成功歸檔並用於 AI 再學習。")
                     st.info("頁面即將刷新...")
+                    # 使用 st.experimental_rerun() 或 st.rerun() 根據您的 Streamlit 版本
                     st.rerun()
 
             except Exception as e:
