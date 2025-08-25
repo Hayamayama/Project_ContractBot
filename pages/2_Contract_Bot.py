@@ -339,6 +339,8 @@ with col3:
         try:
             from reportlab.lib.pagesizes import letter
             from reportlab.pdfgen import canvas
+            from reportlab.pdfbase import pdfmetrics
+            from reportlab.pdfbase.ttfonts import TTFont
 
             buffer = io.BytesIO()
             c = canvas.Canvas(buffer, pagesize=letter)
@@ -350,7 +352,8 @@ with col3:
             line_height = 14
 
             c.setTitle(fname_base)
-            c.setFont("Helvetica", 11)
+            pdfmetrics.registerFont(TTFont('NotoSansTC', 'NotoSansTC-Var.ttf'))
+            c.setFont("NotoSansTC", 11)
 
             for m in st.session_state.get("messages", []):
                 role = m.get("role", "").upper()
@@ -361,7 +364,7 @@ with col3:
                 for seg in wrap(line, 95):
                     if y <= margin_y:
                         c.showPage()
-                        c.setFont("Helvetica", 11)
+                        c.setFont("NotoSansTC", 11)
                         y = height - margin_y
                     c.drawString(margin_x, y, seg)
                     y -= line_height
@@ -372,6 +375,8 @@ with col3:
             buffer.close()
             fname = f"{fname_base}.pdf"
             mime = "application/pdf"
+        except FileNotFoundError:
+            st.error("中文字型檔 'NotoSansTC-Regular.ttf' 找不到，請確認已下載並放置在正確的專案路徑下。")
         except Exception:
             st.error("PDF export requires the 'reportlab' package. Install it with:\n\npip install reportlab")
 
