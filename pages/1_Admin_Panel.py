@@ -16,7 +16,7 @@ st.set_page_config(page_title="管理後台", page_icon="⚙️", layout="wide")
 st.logo("logo.png")
 
 st.header("知識庫管理後台 Knowledge Base Admin Dashboard")
-st.markdown("在這裡，您可以上傳新的知識、管理 GCO 經驗或進行系統維護。")
+st.markdown("在這裡，您可以管理 GCO 經驗或進行系統維護。")
 
 INDEX_NAME = "contract-assistant"
 
@@ -66,32 +66,9 @@ if st.button("從 GCO 文件提取並儲存經驗"):
 
 st.divider()
 
-# --- 功能二：上傳標準範本文件 ---
-st.subheader("上傳新的參考文件 (.pdf)")
-ref_file = st.file_uploader("選擇 PDF 作為新的比對基準", type="pdf", key="ref_uploader")
 
-if st.button("處理並儲存參考文件"):
-    if ref_file:
-        with st.spinner(f"正在處理參考文件 '{ref_file.name}'..."):
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
-                tmp_file.write(ref_file.getvalue())
-                tmp_file_path = tmp_file.name
 
-            loader = PyPDFLoader(tmp_file_path)
-            documents = loader.load()
-            text_splitter = RecursiveCharacterTextSplitter(chunk_size=1500, chunk_overlap=200)
-            docs = text_splitter.split_documents(documents)
-
-            # 使用檔名作為 Namespace
-            ingest_docs_to_pinecone(docs, INDEX_NAME, ref_file.name)
-            os.remove(tmp_file_path)
-            st.success(f"參考文件 '{ref_file.name}' 已成功存入知識庫！")
-    else:
-        st.warning("請先選擇一個參考文件。")
-
-st.divider()
-
-# --- 功能三：索引管理 (危險區域) ---
+# --- 功能二：索引管理 (危險區域) ---
 with st.expander("🚨 危險區域：索引管理"):
     st.warning("警告：以下操作將會永久刪除知識庫中的資料。")
 
