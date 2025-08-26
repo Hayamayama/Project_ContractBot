@@ -401,7 +401,7 @@ if st.session_state.get("comparison_results"):
                     
                     st.session_state.comparison_results = None
                     st.info("頁面即將刷新...")
-                    # 使用 st.experimental_rerun() 或 st.rerun() 根據您的 Streamlit 版本
+                    # 根據 Streamlit 版本使用 st.experimental_rerun() 或 st.rerun() 
                     st.rerun()
 
             except Exception as e:
