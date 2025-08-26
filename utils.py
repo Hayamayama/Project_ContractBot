@@ -28,7 +28,6 @@ def fetch_pinecone_namespaces(index_name):
 
 def extract_revisions_from_single_doc(file_path, nsmap):
     """從單一 .docx 檔案中，直接讀取追蹤修訂的內容。"""
-    # (此函式內容與您提供的版本完全相同)
     doc = docx.Document(file_path)
     extracted_data = []
     for para in doc.paragraphs:
@@ -45,14 +44,23 @@ def extract_revisions_from_single_doc(file_path, nsmap):
                     original_text += text
                     revised_text += text
             if original_text.strip() != revised_text.strip():
-                wisdom_chunk = (f"【審閱案例 - 追蹤修訂】\n...") # (格式化字串省略)
+                wisdom_chunk = (
+                    f"【審閱案例 - 追蹤修訂】\n"
+                    f"  - 修訂前原文：\n"
+                    f"    ---\n"
+                    f"    {original_text.strip()}\n"
+                    f"    ---\n"
+                    f"  - 修訂後建議：\n"
+                    f"    ---\n"
+                    f"    {revised_text.strip()}\n"
+                    f"    ---\n"
+                )
                 extracted_data.append(wisdom_chunk)
     return extracted_data
 
 
 def extract_comments_from_docx(file_path):
     """從 .docx 檔案中提取所有註解及其關聯的文字。"""
-    # (此函式內容與您提供的版本完全相同)
     doc = docx.Document(file_path)
     extracted_data = []
     for comment in doc.comments:
@@ -60,7 +68,17 @@ def extract_comments_from_docx(file_path):
         original_text = "\n".join([p.text for p in paragraphs]).strip()
         comment_text = comment.text.strip()
         if original_text and comment_text:
-            wisdom_chunk = (f"【審閱案例 - 法務專家註解】\n...") # (格式化字串省略)
+            wisdom_chunk = (
+                f"【審閱案例 - 法務專家註解】\n"
+                f"  - 關聯原文：\n"
+                f"    ---\n"
+                f"    {original_text.strip()}\n"
+                f"    ---\n"
+                f"  - 專家註解：\n"
+                f"    ---\n"
+                f"    {comment_text}\n"
+                f"    ---\n"
+            )
             extracted_data.append(wisdom_chunk)
     return extracted_data
 
