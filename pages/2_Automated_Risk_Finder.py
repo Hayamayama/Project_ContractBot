@@ -26,7 +26,7 @@ import Risk_Knowledge
 
 load_dotenv()
 # ---------------- UI Configuration ----------------
-st.set_page_config(page_title="Contract Risk Classifier", layout="wide")
+st.set_page_config(page_title="Contract Risk Finder", layout="wide")
 st.logo("logo.png")
 
 # ---------------- Configuration ----------------
