@@ -3,7 +3,7 @@ import os
 import tempfile
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-# 從我們的共用函式庫中導入函式
+# 從共用函式庫中導入函式
 from utils import (
     extract_revisions_from_single_doc,
     extract_comments_from_docx,
