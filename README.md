@@ -175,6 +175,10 @@ streamlit run Homepage.py
     -   上傳一份合約 PDF，點擊分析。
     -   系統會自動列出所有高、中風險條款，並提供下載附有重點標註的 PDF 檔案。
 
+## Streamlit Community Cloud連結
+https://project-contractbot.streamlit.app/
+
+
 ## 授權
 
 ©2025 Ernst & Young LLP. All Rights Reserved. (詳見頁尾宣告)
