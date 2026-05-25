@@ -179,6 +179,4 @@ streamlit run Homepage.py
 https://project-contractbot.streamlit.app/
 
 
-## 授權
 
-©2025 Ernst & Young LLP. All Rights Reserved. (詳見頁尾宣告)
